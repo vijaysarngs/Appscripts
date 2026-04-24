@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YAALI Testimonials</title>
+
+  <style>
+    :root {
+      --blue: #003366;
+      --light: #f8fafc;
+      --text: #1e293b;
+      --gray: #475569;
+      --accent: #f59e0b;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      background: var(--light);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    .slider-container {
+      position: relative;
+      width: 100%;
+      max-width: 700px;
+      margin: 40px auto;
+      overflow: hidden;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    .slider-track {
+      display: flex;
+      transition: transform 0.5s ease-in-out;
+    }
+
+    .card {
+      flex: 0 0 100%;
+      box-sizing: border-box;
+      padding: 28px 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 340px;
+    }
+
+    .project-name {
+      color: var(--blue);
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .card h3 {
+      margin: 6px 0 2px;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .card p {
+      font-size: 14px;
+      color: var(--gray);
+      line-height: 1.6;
+      margin-top: 8px;
+      white-space: pre-line;
+      padding: 0 10px;
+    }
+
+    .nav-button {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .prev { left: 10px; }
+    .next { right: 10px; }
+
+    .dot {
+      height: 8px; width: 8px;
+      margin: 0 4px;
+      background-color: #cbd5e1;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot.active { background-color: var(--blue); }
+
+    .pagination {
+      text-align: center;
+      margin: 14px 0 20px;
+    }
+
+    .video-wrapper {
+      width: 100%;
+      max-width: 560px;
+      height: 315px;
+      margin-bottom: 12px;
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .video-wrapper video {
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      background: #000;
+    }
+
+    /* Loading spinner for video */
+    .video-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 560px;
+      height: 315px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .video-loading span {
+      color: rgba(255,255,255,0.8);
+      font-size: 13px;
+    }
+
+    /* Error state */
+    .video-error {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 560px;
+      height: 200px;
+      background: linear-gradient(135deg, #2d1b1b 0%, #1a1a2e 100%);
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+
+    .video-error span {
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="slider-container" id="sliderContainer">
+    <button class="nav-button prev" onclick="prevSlide()">&#8249;</button>
+    <div class="slider-track" id="sliderTrack"></div>
+    <button class="nav-button next" onclick="nextSlide()">&#8250;</button>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <script>
+    var testimonials = [];
+    var currentIndex = 0;
+    var autoplayInterval;
+    var slideDuration = 9000;
+    var isHovering = false;
+
+    /**
+     * Convert base64 string to a Blob URL for inline <video> playback.
+     * This creates a local object URL — no cross-origin issues.
+     */
+    function base64ToBlobUrl(base64, mimeType) {
+      var raw = atob(base64);
+      var len = raw.length;
+      var bytes = new Uint8Array(len);
+      for (var i = 0; i < len; i++) {
+        bytes[i] = raw.charCodeAt(i);
+      }
+      var blob = new Blob([bytes], { type: mimeType });
+      return URL.createObjectURL(blob);
+    }
+
+    /**
+     * Fetch video from server (proxied through Apps Script),
+     * convert to Blob URL, and set on the <video> element.
+     */
+    function loadVideo(videoId, index) {
+      console.log("Loading video " + index + ", ID: " + videoId);
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          var container = document.getElementById("video-slot-" + index);
+          if (!container) return;
+
+          console.log("Video " + index + " server response:", JSON.stringify(result ? {error: result.error, mimeType: result.mimeType, dataLen: result.data ? result.data.length : 0} : null));
+
+          // Server returned an error message
+          if (result && result.error) {
+            container.innerHTML =
+              '<div class="video-error">' +
+              '<span>&#9888; ' + result.error + '</span>' +
+              '</div>';
+            return;
+          }
+
+          // No data received
+          if (!result || !result.data) {
+            container.innerHTML =
+              '<div class="video-error">' +
+              '<span>&#9888; No video data received (result=' + String(result) + ')</span>' +
+              '</div>';
+            return;
+          }
+
+          try {
+            var blobUrl = base64ToBlobUrl(result.data, result.mimeType);
+
+            container.innerHTML =
+              '<div class="video-wrapper">' +
+              '<video controls playsinline preload="auto">' +
+              '<source src="' + blobUrl + '" type="' + result.mimeType + '">' +
+              '</video>' +
+              '</div>';
+
+            console.log("Video " + index + " loaded successfully, blob URL created");
+          } catch (blobErr) {
+            container.innerHTML =
+              '<div class="video-error">' +
+              '<span>&#9888; Blob error: ' + blobErr.message + '</span>' +
+              '</div>';
+          }
+        })
+        .withFailureHandler(function(err) {
+          console.error("Video " + index + " RPC failed:", err);
+          var container = document.getElementById("video-slot-" + index);
+          if (container) {
+            container.innerHTML =
+              '<div class="video-error">' +
+              '<span>&#9888; Server error: ' + (err.message || err) + '</span>' +
+              '</div>';
+          }
+        })
+        .getVideoBase64(videoId);
+    }
+
+    function renderTestimonials(data) {
+      testimonials = data || [];
+      var track = document.getElementById("sliderTrack");
+      var pagination = document.getElementById("pagination");
+
+      track.innerHTML = "";
+      pagination.innerHTML = "";
+
+      if (!testimonials.length) {
+        track.innerHTML = "<div class='card'><p>No testimonials available.</p></div>";
+        return;
+      }
+
+      testimonials.forEach(function(item, index) {
+        var card = document.createElement("div");
+        card.className = "card";
+
+        if (item.isVideo && item.videoId) {
+          // Show loading spinner; video will be injected after base64 fetch
+          card.innerHTML =
+            '<div class="project-name">' + item.project + '</div>' +
+            '<div id="video-slot-' + index + '">' +
+              '<div class="video-loading">' +
+                '<div class="spinner"></div>' +
+                '<span>Loading video...</span>' +
+              '</div>' +
+            '</div>' +
+            '<h3>' + item.name + '</h3>' +
+            '<small>' + item.title + '</small>';
+        } else {
+          card.innerHTML =
+            '<div class="project-name">' + item.project + '</div>' +
+            '<h3>' + item.name + '</h3>' +
+            '<small>' + item.title + '</small>' +
+            '<p>' + item.message + '</p>';
+        }
+
+        track.appendChild(card);
+
+        var dot = document.createElement("span");
+        dot.className = "dot" + (index === 0 ? " active" : "");
+        pagination.appendChild(dot);
+      });
+
+      // Now fetch video data for all video testimonials
+      testimonials.forEach(function(item, index) {
+        if (item.isVideo && item.videoId) {
+          loadVideo(item.videoId, index);
+        }
+      });
+
+      updateSlider();
+      startAutoplay();
+    }
+
+    /** SLIDER UPDATE **/
+    function updateSlider() {
+      var track = document.getElementById("sliderTrack");
+      track.style.transform = "translateX(-" + (currentIndex * 100) + "%)";
+
+      var dots = document.querySelectorAll(".dot");
+      for (var i = 0; i < dots.length; i++) {
+        dots[i].classList.toggle("active", i === currentIndex);
+      }
+
+      handleAutoplayState();
+    }
+
+    /** NEXT / PREV **/
+    function nextSlide() {
+      currentIndex = (currentIndex + 1) % testimonials.length;
+      updateSlider();
+
+      if (!testimonials[currentIndex].isVideo && !isHovering) {
+        resetAutoplay();
+      }
+    }
+
+    function prevSlide() {
+      currentIndex = (currentIndex - 1 + testimonials.length) % testimonials.length;
+      updateSlider();
+
+      if (!testimonials[currentIndex].isVideo && !isHovering) {
+        resetAutoplay();
+      }
+    }
+
+    /** AUTOPLAY LOGIC **/
+    function handleAutoplayState() {
+      var item = testimonials[currentIndex];
+
+      if (item.isVideo) {
+        stopAutoplay();
+        return;
+      }
+
+      if (isHovering) {
+        stopAutoplay();
+        return;
+      }
+
+      startAutoplay();
+    }
+
+    function startAutoplay() {
+      stopAutoplay();
+      autoplayInterval = setInterval(nextSlide, slideDuration);
+    }
+
+    function stopAutoplay() {
+      clearInterval(autoplayInterval);
+    }
+
+    function resetAutoplay() {
+      stopAutoplay();
+      startAutoplay();
+    }
+
+    /** HOVER PAUSE **/
+    var slider = document.getElementById("sliderContainer");
+
+    slider.addEventListener("mouseenter", function() {
+      isHovering = true;
+      stopAutoplay();
+    });
+
+    slider.addEventListener("mouseleave", function() {
+      isHovering = false;
+
+      var item = testimonials[currentIndex];
+      if (!item.isVideo) {
+        startAutoplay();
+      }
+    });
+
+    /** LOAD DATA **/
+    google.script.run.withSuccessHandler(function(data) {
+      console.log("Loaded", data.length, "testimonials");
+      renderTestimonials(data);
+    }).getCachedTestimonials();
+  </script>
+
+</body>
+</html>
