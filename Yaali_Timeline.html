@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Yaali Project Collaboration Flow</title>
+<style>
+  :root {
+    --royal:#10067a;
+    --light:#d6dbff;
+    --bg:#f8f9ff;
+    --halo:rgba(255,255,255,0.9);
+  }
+
+  body{
+    font-family:'Segoe UI',Roboto,sans-serif;
+    background:var(--bg);
+    color:var(--royal);
+    text-align:center;
+    margin:0;
+    padding:100px 0 100px;
+    overflow-x:hidden;
+  }
+
+  h2{font-weight:700;margin-bottom:60px;}
+
+  .timeline-wrapper{
+    width:100%;
+    display:flex;
+    justify-content:center;
+  }
+
+  .timeline{
+    position:relative;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    max-width:1100px;
+    width:90%;
+    margin:0 auto;
+    padding:0 20px;
+  }
+
+  .timeline::before{
+    content:"";
+    position:absolute;
+    bottom:35px;
+    left:0;right:0;
+    height:3px;
+    background:var(--light);
+    border-radius:2px;
+    z-index:1;
+  }
+
+  .progress{
+    position:absolute;
+    bottom:35px;
+    left:0;
+    height:3px;
+    width:0%;
+    background:var(--royal);
+    border-radius:2px;
+    z-index:2;
+    transition:width 0.6s ease;
+  }
+
+  .step{position:relative;flex:1;text-align:center;z-index:5;}
+
+  .diamond{
+    width:24px;
+    height:24px;
+    background:var(--royal);
+    transform:rotate(45deg);
+    margin:0 auto;
+    position:relative;
+    bottom:24px;
+    box-shadow:0 0 0 6px var(--halo);
+    cursor:pointer;
+    transition:transform .3s ease,box-shadow .3s ease;
+  }
+
+  /* Hover: diamond rotates back to square */
+  .diamond:hover{
+    transform:rotate(0deg) scale(1.15);
+    box-shadow:0 0 0 8px var(--halo),0 0 8px rgba(16,6,122,0.4);
+  }
+
+  /* Tooltip */
+  .diamond::after{
+    content:attr(data-tip);
+    position:absolute;
+    bottom:130%;
+    left:50%;
+    transform:translateX(-50%) rotate(-45deg);
+    background:var(--royal);
+    color:#fff;
+    font-size:11px;
+    padding:5px 8px;
+    border-radius:4px;
+    opacity:0;
+    white-space:nowrap;
+    pointer-events:none;
+    transition:opacity .3s ease, transform .3s ease;
+  }
+  .diamond:hover::after{
+    opacity:1;
+    transform:translateX(-50%) rotate(0deg);
+  }
+
+  .cards-container{
+    display:flex;
+    justify-content:space-between;
+    max-width:1100px;
+    width:90%;
+    margin:40px auto 0;
+  }
+  .card{
+    flex:1;
+    margin:0 5px;
+    background:#fff;
+    border:2px solid var(--royal);
+    border-radius:10px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    padding:12px 14px;
+    opacity:0.4;
+    transition:opacity .3s ease, transform .3s ease;
+  }
+  .card.active{opacity:1;transform:scale(1.05);}
+  .card h4{margin:0 0 4px;font-size:14px;font-weight:700;}
+  .card p{margin:0;font-size:12px;color:#333;}
+
+  .steps-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    max-width:1100px;
+    width:90%;
+    margin:60px auto 0;
+    font-size:12px;
+    color:#5d72ff;
+  }
+  .steps-row span{flex:1;text-align:center;}
+
+  .info-line{
+    margin-top:25px;
+    font-size:13px;
+    font-style:italic;
+    color:#333;
+  }
+
+  canvas.confetti{
+    position:fixed;
+    top:0;left:0;width:100%;height:100%;
+    pointer-events:none;
+    z-index:9999;
+  }
+
+  @media(max-width:900px){
+    .timeline{overflow-x:auto;padding:0 30px;}
+    .cards-container{flex-wrap:wrap;gap:12px;}
+    .card{flex:1 1 45%;min-width:140px;}
+  }
+</style>
+</head>
+<body>
+
+<h2>Yaali Project Collaboration Flow</h2>
+
+<div class="timeline-wrapper">
+  <div class="timeline" id="timeline">
+    <div class="progress" id="progress"></div>
+
+    <div class="step"><div class="diamond" data-tip="Start collaboration" onclick="triggerStep(this)"></div></div>
+    <div class="step"><div class="diamond" data-tip="Open project form" onclick="triggerStep(this,'form')"></div></div>
+    <div class="step"><div class="diamond" data-tip="Mail confirmation sent" onclick="triggerStep(this)"></div></div>
+    <div class="step"><div class="diamond" data-tip="Await response" onclick="triggerStep(this)"></div></div>
+    <div class="step"><div class="diamond" data-tip="Discuss project scope" onclick="triggerStep(this)"></div></div>
+    <div class="step"><div class="diamond" data-tip="Execution in progress" onclick="triggerStep(this)"></div></div>
+    <div class="step"><div class="diamond" data-tip="Review & refine" onclick="triggerStep(this)"></div></div>
+    <div class="step"><div class="diamond" data-tip="Celebrate completion!" onclick="triggerStep(this,'complete')"></div></div>
+  </div>
+</div>
+
+<div class="steps-row">
+  <span>Step 1</span><span>Step 2</span><span>Step 3</span><span>Step 4</span>
+  <span>Step 5</span><span>Step 6</span><span>Step 7</span><span>Step 8</span>
+</div>
+
+<!-- Static Cards Row -->
+<div class="cards-container" id="cardsContainer">
+  <div class="card"><h4>Need to Collaborate</h4><p>Initiate request</p></div>
+  <div class="card"><h4>Fill the Form</h4><p>Provide project details</p></div>
+  <div class="card"><h4>Mail sent to GCDO</h4><p>Confirmation auto-sent</p></div>
+  <div class="card"><h4>Response from GCDO</h4><p>3–5 working days</p></div>
+  <div class="card"><h4>Project Scope Discussion</h4><p>Define deliverables</p></div>
+  <div class="card"><h4>Work on Project</h4><p>Execution in progress</p></div>
+  <div class="card"><h4>Review and Update</h4><p>Feedback integration</p></div>
+  <div class="card"><h4>Completion</h4><p>Celebrate success!</p></div>
+</div>
+
+<p class="info-line"> Click on the diamonds to explore how to collaborate with Yaali.</p>
+<canvas class="confetti"></canvas>
+
+<script>
+const formURL='<?= FORM_URL ?>';
+const progressEl=document.getElementById('progress');
+const steps=document.querySelectorAll('.step');
+const diamonds=document.querySelectorAll('.diamond');
+const cards=document.querySelectorAll('.card');
+
+function triggerStep(el,action){
+  const step=el.parentElement;
+
+
+  steps.forEach(s=>s.classList.remove('active'));
+  cards.forEach(c=>c.classList.remove('active'));
+
+  step.classList.add('active');
+  const idx=Array.from(diamonds).indexOf(el);
+  cards[idx].classList.add('active');
+
+  const percent=(idx/(diamonds.length-1))*100;
+  progressEl.style.width=percent+'%';
+
+  if(action==='form'&&formURL&&formURL!=='#')window.open(formURL,'_blank');
+  if(action==='complete')triggerConfetti();
+}
+
+/* CONFETTI */
+const canvas=document.querySelector('.confetti');
+const ctx=canvas.getContext('2d');
+let confetti=[];let animating=false;
+function resizeCanvas(){canvas.width=innerWidth;canvas.height=innerHeight;}
+window.addEventListener('resize',resizeCanvas);resizeCanvas();
+
+function triggerConfetti(){
+  confetti=[];
+  for(let i=0;i<180;i++){
+    confetti.push({
+      x:Math.random()*canvas.width,
+      y:Math.random()*-canvas.height,
+      r:Math.random()*6+4,
+      dx:(Math.random()-0.5)*2,
+      dy:Math.random()*3+2,
+      color:randomRocheColor(),
+      shape:['circle','rect','tri'][Math.floor(Math.random()*3)],
+      rot:Math.random()*2*Math.PI,
+      dRot:(Math.random()-0.5)*0.2,
+      opacity:1
+    });
+  }
+  if(!animating){
+    animating=true;animateConfetti();
+    setTimeout(()=>{
+      const fade=setInterval(()=>{
+        confetti.forEach(c=>c.opacity-=0.03);
+        confetti=confetti.filter(c=>c.opacity>0);
+        if(confetti.length===0){clearInterval(fade);animating=false;}
+      },40);
+    },2500);
+  }
+}
+function animateConfetti(){
+  if(!animating&&confetti.length===0)return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  confetti.forEach(c=>{
+    c.x+=c.dx;c.y+=c.dy;c.rot+=c.dRot;
+    if(c.y>canvas.height+20)c.y=-10;
+    ctx.save();ctx.globalAlpha=Math.max(0,c.opacity);
+    ctx.translate(c.x,c.y);ctx.rotate(c.rot);
+    ctx.fillStyle=c.color;
+    if(c.shape==='rect')ctx.fillRect(-c.r/2,-c.r/2,c.r,c.r);
+    else if(c.shape==='tri'){
+      ctx.beginPath();ctx.moveTo(0,-c.r);
+      ctx.lineTo(-c.r,c.r);ctx.lineTo(c.r,c.r);
+      ctx.closePath();ctx.fill();
+    }else{
+      ctx.beginPath();ctx.arc(0,0,c.r/2,0,2*Math.PI);ctx.fill();
+    }
+    ctx.restore();
+  });
+  requestAnimationFrame(animateConfetti);
+}
+function randomRocheColor(){
+  const p=['#10067a','#1f2bd4','#5d72ff','#a7b3ff','#d6dbff'];
+  return p[Math.floor(Math.random()*p.length)];
+}
+
+/* Initialize first step */
+window.addEventListener('DOMContentLoaded',()=>triggerStep(diamonds[0]));
+</script>
+</body>
+</html>
