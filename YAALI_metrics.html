@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Yaali Global Metrics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+  <style>
+    :root {
+      --yaali-blue: #10067A;
+      --yaali-blue-light: #4f46e5;
+      --yaali-bg: #f8fafc;
+      --yaali-card-bg: #ffffff;
+      --yaali-border: #e2e8f0;
+      --yaali-text-main: #0f172a;
+      --yaali-text-muted: #64748b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--yaali-bg);
+      color: var(--yaali-text-main);
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 24px;
+      color: var(--yaali-blue);
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--yaali-text-muted);
+      margin-bottom: 18px;
+    }
+
+    /* FILTERS */
+    .filters-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+      margin-bottom: 16px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      min-width: 150px;
+      max-width: 200px;
+      flex: 1 1 150px;
+    }
+
+    .filter-group label {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: var(--yaali-text-muted);
+    }
+
+    select {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--yaali-border);
+      font-size: 13px;
+      background: #fff;
+      color: var(--yaali-text-main);
+      outline: none;
+    }
+
+    select:focus {
+      border-color: var(--yaali-blue-light);
+      box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.25);
+    }
+
+    .reset-btn {
+      padding: 8px 16px;
+      background: var(--yaali-blue);
+      color: #fff;
+      border-radius: 999px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .reset-btn:hover { background: var(--yaali-blue-light); }
+
+    /* KPI CARDS */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .kpi-card {
+      background: var(--yaali-card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--yaali-border);
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+      padding: 14px 16px;
+    }
+
+    .kpi-label { font-size: 12px; color: var(--yaali-text-muted); margin-bottom: 2px; }
+    .kpi-value { font-size: 26px; font-weight: 700; color: var(--yaali-blue); }
+    .kpi-sub { font-size: 11px; color: var(--yaali-text-muted); margin-top: 4px; }
+
+    /* CHARTS GRID */
+    .charts-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .chart-card {
+      background: var(--yaali-card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--yaali-border);
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+      padding: 12px 14px 10px;
+      flex: 1 1 calc(33.333% - 16px);
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media (max-width: 1024px) {
+      .chart-card { flex: 1 1 calc(50% - 16px); }
+    }
+    @media (max-width: 768px) {
+      .chart-card { flex: 1 1 100%; }
+    }
+
+    .chart-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .chart-title { font-size: 14px; font-weight: 600; color: var(--yaali-blue); }
+    .chart-tag {
+      font-size: 11px;
+      color: var(--yaali-text-muted);
+      border-radius: 999px;
+      border: 1px solid #e5e7eb;
+      padding: 2px 8px;
+    }
+    .chart-caption { font-size: 11px; color: var(--yaali-text-muted); margin-bottom: 4px; }
+    .chart-wrapper { position: relative; width: 100%; height: 240px; }
+    
+    .error-banner {
+      font-size: 12px; color: #b91c1c; background: #fee2e2;
+      border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Yaali Global Metrics</h1>
+  <p class="subtitle">Interactive snapshot of project performance.</p>
+
+  <div id="errorBanner" class="error-banner"></div>
+
+  <div class="filters-row">
+    <div class="filter-group">
+      <label for="yearFilter">Year</label>
+      <select id="yearFilter"></select>
+    </div>
+    <div class="filter-group">
+      <label for="regionFilter">Region</label>
+      <select id="regionFilter"></select>
+    </div>
+    <div class="filter-group">
+      <label for="countryFilter">Country</label>
+      <select id="countryFilter"></select>
+    </div>
+    <div class="filter-group">
+      <label for="taFilter">Therapeutic Area (TA)</label>
+      <select id="taFilter"></select>
+    </div>
+    <div class="filter-group">
+      <label for="statusFilter">Status</label>
+      <select id="statusFilter"></select>
+    </div>
+    <button id="resetBtn" class="reset-btn">Reset filters</button>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Projects</div>
+      <div id="kpiTotalProjects" class="kpi-value">0</div>
+      <div class="kpi-sub">After filters</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Total Testimonials</div>
+      <div id="kpiTotalTestimonials" class="kpi-value">0</div>
+      <div class="kpi-sub">From testimonial sheet</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Countries Reached</div>
+      <div id="kpiCountries" class="kpi-value">0</div>
+      <div class="kpi-sub">Distinct countries in view</div>
+    </div>
+    </div>
+
+  <div class="charts-row">
+    
+    <div class="chart-card">
+      <div class="chart-title-row">
+        <div class="chart-title">Status Distribution</div>
+        <div class="chart-tag">Donut</div>
+      </div>
+      <div class="chart-caption">Mix of Completed, On-Track, Hold, and Pipeline Projects.</div>
+      <div class="chart-wrapper">
+        <canvas id="statusChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title-row">
+        <div class="chart-title">Project Count per TA</div>
+        <div class="chart-tag">Bar</div>
+      </div>
+      <div class="chart-caption">Count per Therapeutic Area.</div>
+      <div class="chart-wrapper">
+        <canvas id="taCountChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title-row">
+        <div class="chart-title">Project Count per Year</div>
+        <div class="chart-tag">Trend</div>
+      </div>
+      <div class="chart-caption">Based strictly on completed date.</div>
+      <div class="chart-wrapper">
+        <canvas id="yearCountChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+
+    let RAW_ROWS = [];
+    let RAW_TESTIMONIALS = [];  // Testimonial records from extra_testimony sheet
+    let charts = {};
+
+    // ---------- UTILITIES ----------
+    const canonical = s => (s || '').toString().trim().toLowerCase();
+
+    // Helper to capitalize first letter
+    const capitalizeFirst = s => {
+      if (typeof s !== 'string') return '';
+      const trimmed = s.trim();
+      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+    };
+
+    function splitMulti(str) {
+      if (!str) return [];
+      const bad = new Set(['na', 'n/a', 'none', 'unspecified', 'not applicable', '-']);
+      return str.toString().split(/[,;/&]+/).map(t => t.trim()).filter(t => {
+        const c = canonical(t);
+        return c && !bad.has(c);
+      });
+    }
+
+    function extractYear(row) {
+      // Adjusted to support "completed date" with spaces 
+      let val = row['completed date'] || row['Completed Date'] || row.completedDate;
+      
+      if (val) {
+        const d = new Date(val);
+        if (!isNaN(d.getFullYear())) {
+          return d.getFullYear().toString();
+        }
+      }
+      return 'Unknown';
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorBanner');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    // ---------- INIT ----------
+    if (typeof google !== 'undefined' && google.script) {
+      google.script.run
+        .withSuccessHandler(result => {
+          try {
+            // getMetricsData() returns { projects: [...], testimonials: [...] }
+            RAW_ROWS = Array.isArray(result.projects) ? result.projects : [];
+            RAW_TESTIMONIALS = Array.isArray(result.testimonials) ? result.testimonials : [];
+            initFiltersAndDashboard();
+          } catch (e) {
+            console.error(e);
+            showError('Data loaded but processing failed.');
+          }
+        })
+        .withFailureHandler(err => {
+          console.error(err);
+          showError('Error loading metrics data from server.');
+        })
+        .getMetricsData();
+    } else {
+      console.warn('Google Script API not found. Running locally.');
+    }
+
+    // ---------- FILTERS + DASHBOARD ----------
+    function initFiltersAndDashboard() {
+      buildFilterOptions();
+      
+      // Cascading logic: When region changes, update country dropdown THEN update dashboard
+      document.getElementById('regionFilter').addEventListener('change', () => {
+        updateCountryDropdown();
+        updateDashboard();
+      });
+
+      // Standard listeners for the rest
+      ['yearFilter', 'countryFilter', 'taFilter', 'statusFilter'].forEach(id => {
+        document.getElementById(id).addEventListener('change', updateDashboard);
+      });
+
+      // Reset listener
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        document.querySelectorAll('select').forEach(s => s.value = '');
+        updateCountryDropdown(); // Reset country list back to fully populated
+        updateDashboard();
+      });
+
+      updateDashboard();
+    }
+
+    function buildFilterOptions() {
+      const yearSet = new Set();
+      const regionSet = new Map();
+      const taSet = new Map();
+      const statusSet = new Map();
+
+      RAW_ROWS.forEach(r => {
+        const y = extractYear(r);
+        if (y && y !== 'Unknown') yearSet.add(y);
+
+        const region = r.region || '';
+        // Remove Unassigned from Regions
+        if (region && canonical(region) !== 'unassigned') {
+          regionSet.set(canonical(region), region);
+        }
+
+        const status = r.status || '';
+        // Capitalize first letter for Status
+        if (status) statusSet.set(canonical(status), capitalizeFirst(status));
+
+        splitMulti(r.TA || '').forEach(t => taSet.set(canonical(t), t));
+      });
+
+      // Force Add Option for 2026 Year
+      yearSet.add('2026');
+      
+      // Force Add Option for "Hold" Status
+      statusSet.set('hold', 'Hold');
+
+      // Populate Year Dropdown
+      const yearSel = document.getElementById('yearFilter');
+      yearSel.innerHTML = '<option value="">All</option>';
+      Array.from(yearSet).sort((a,b) => b - a).forEach(year => {
+        const opt = document.createElement('option');
+        opt.value = year;
+        opt.textContent = year;
+        yearSel.appendChild(opt);
+      });
+      if (RAW_ROWS.some(r => extractYear(r) === 'Unknown')) {
+        const opt = document.createElement('option');
+        opt.value = 'Unknown';
+        opt.textContent = 'Unknown';
+        yearSel.appendChild(opt);
+      }
+
+      function fillSelect(id, map) {
+        const sel = document.getElementById(id);
+        sel.innerHTML = '<option value="">All</option>';
+        Array.from(map.values()).sort().forEach(label => {
+          const opt = document.createElement('option');
+          opt.value = canonical(label);
+          opt.textContent = label;
+          sel.appendChild(opt);
+        });
+      }
+
+      fillSelect('regionFilter', regionSet);
+      fillSelect('taFilter', taSet);
+      fillSelect('statusFilter', statusSet);
+
+      // Populate countries initially based on "All" regions
+      updateCountryDropdown();
+    }
+
+    // Cascading Country Dropdown Update based on Selected Region
+    function updateCountryDropdown() {
+      const selectedRegion = document.getElementById('regionFilter').value;
+      const countrySet = new Map();
+
+      RAW_ROWS.forEach(r => {
+        const region = canonical(r.region || '');
+        const country = r.country || '';
+
+        // If no region is selected, or if the row's region matches the selected region
+        if (!selectedRegion || region === selectedRegion) {
+          // Remove LATAM from Country Dropdown options
+          if (country && canonical(country) !== 'latam') {
+            countrySet.set(canonical(country), country);
+          }
+        }
+      });
+
+      const countrySel = document.getElementById('countryFilter');
+      const currentVal = countrySel.value; // Store what the user had selected
+
+      // Rebuild options
+      countrySel.innerHTML = '<option value="">All</option>';
+      Array.from(countrySet.values()).sort().forEach(label => {
+        const opt = document.createElement('option');
+        opt.value = canonical(label);
+        opt.textContent = label;
+        countrySel.appendChild(opt);
+      });
+
+      // Retain previous country selection if it is still valid in the new list
+      if (currentVal && countrySet.has(currentVal)) {
+        countrySel.value = currentVal;
+      } else {
+        countrySel.value = '';
+      }
+    }
+
+    function getFilteredRows() {
+      const yearVal = document.getElementById('yearFilter').value;
+      const regionVal = document.getElementById('regionFilter').value;
+      const countryVal = document.getElementById('countryFilter').value;
+      const taVal = document.getElementById('taFilter').value;
+      const statusVal = document.getElementById('statusFilter').value;
+
+      return RAW_ROWS.filter(r => {
+        const year = extractYear(r);
+        const region = canonical(r.region || '');
+        const country = canonical(r.country || '');
+        const status = canonical(r.status || '');
+        const taTokens = splitMulti(r.TA || '').map(canonical);
+
+        const yearOK = !yearVal || year === yearVal;
+        const regionOK = !regionVal || region === regionVal;
+        const countryOK = !countryVal || country === countryVal;
+        const statusOK = !statusVal || status === statusVal;
+        const taOK = !taVal || taTokens.includes(taVal);
+
+        return yearOK && regionOK && countryOK && statusOK && taOK;
+      });
+    }
+
+    /**
+     * Filter testimonials from RAW_TESTIMONIALS based on current filters.
+     * Matches testimonials to the set of filtered project names so that
+     * region/country/TA/status/year filters work transitively.
+     * Also applies region filter directly on the testimonial's own region field.
+     */
+    function getFilteredTestimonials(filteredRows) {
+      const regionVal = document.getElementById('regionFilter').value;
+
+      // Build set of filtered project names (lowercase) for matching
+      const filteredProjectNames = new Set();
+      filteredRows.forEach(r => {
+        const name = canonical(r.name || '');
+        if (name) filteredProjectNames.add(name);
+      });
+
+      return RAW_TESTIMONIALS.filter(t => {
+        const tProjectName = canonical(t.projectName || '');
+        const tRegion = canonical(t.region || '');
+
+        // Match testimonial's project name against filtered projects
+        const projectOK = !filteredProjectNames.size || filteredProjectNames.has(tProjectName);
+
+        // Also respect region filter on testimonial's own region column
+        const regionOK = !regionVal || tRegion === regionVal;
+
+        return projectOK && regionOK;
+      });
+    }
+
+    function updateDashboard() {
+      const rows = getFilteredRows();
+
+      // KPIs
+      const projectNames = new Set();
+      const countries = new Set();
+      
+      rows.forEach(r => {
+        const name = (r.name || '').toString().trim();
+        if (name) projectNames.add(name);
+        
+        const country = r.country || '';
+        // Don't include LATAM in the KPI country count
+        if (country && canonical(country) !== 'latam') countries.add(country);
+      });
+
+      // Count testimonials from extra_testimony sheet, filtered by current view
+      const filteredTestimonials = getFilteredTestimonials(rows);
+
+      document.getElementById('kpiTotalProjects').textContent = projectNames.size;
+      document.getElementById('kpiTotalTestimonials').textContent = filteredTestimonials.length;
+      document.getElementById('kpiCountries').textContent = countries.size;
+
+      // Prepare project list for charts
+      const projectMap = new Map();
+      rows.forEach(r => {
+        const name = (r.name || '').toString().trim();
+        if (!name) return;
+        if (!projectMap.has(name)) projectMap.set(name, []);
+        projectMap.get(name).push(r);
+      });
+      
+      const projectList = Array.from(projectMap.entries()).map(([name, list]) => {
+        const first = list[0] || {};
+        const allTAs = new Set();
+        list.forEach(item => splitMulti(item.TA || '').forEach(t => allTAs.add(t)));
+        return {
+          name,
+          year: extractYear(first),
+          tas: Array.from(allTAs)
+        };
+      });
+
+      renderStatusDonut(rows);
+      renderTACount(projectList);
+      renderYearCount(projectList);
+    }
+
+    // ---------- CHART RENDERERS ----------
+    
+    function destroyChart(id) {
+      if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+    }
+
+    // 1. STATUS DONUT (Updated to include 'Hold')
+    function renderStatusDonut(rows) {
+      destroyChart('statusChart');
+      const counts = { completed: 0, ontrack: 0, pipeline: 0, hold: 0 };
+      
+      rows.forEach(r => {
+        const s = canonical(r.status || '');
+        if (s.includes('complete')) counts.completed++;
+        else if (s.includes('track') || s === 'ongoing') counts.ontrack++;
+        else if (s.includes('pipeline')) counts.pipeline++;
+        else if (s.includes('hold')) counts.hold++;
+      });
+
+      const ctx = document.getElementById('statusChart');
+
+      charts.statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Completed', 'On-Track', 'Hold', 'Pipeline'],
+          datasets: [{
+            data: [counts.completed, counts.ontrack, counts.hold, counts.pipeline],
+            // Added orange color for Hold
+            backgroundColor: ['#10067A', '#4f46e5', '#f59e0b', '#9ca3af'],
+            borderWidth: 1, borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { 
+            legend: { position: 'bottom', labels: { boxWidth: 12 } },
+            tooltip: { enabled: true },
+            datalabels: {
+              color: '#ffffff',
+              font: { weight: 'bold', size: 14, family: 'system-ui' },
+              formatter: (value) => {
+                return value > 0 ? value : '';
+              }
+            }
+          },
+          cutout: '60%'
+        }
+      });
+    }
+
+    // 2. TA COUNT (Bar Chart)
+    function renderTACount(projectList) {
+      destroyChart('taCountChart');
+      const counts = {};
+      projectList.forEach(p => {
+        p.tas.forEach(ta => {
+          if (!ta) return;
+          counts[ta] = (counts[ta] || 0) + 1;
+        });
+      });
+
+      const labels = Object.keys(counts).sort();
+      const dataVals = labels.map(l => counts[l]);
+
+      const ctx = document.getElementById('taCountChart');
+      charts.taCountChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Projects',
+            data: dataVals,
+            backgroundColor: '#10067A',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { 
+            legend: { display: false },
+            datalabels: {
+              color: '#ffffff',
+              anchor: 'center',
+              align: 'center',
+              font: { weight: 'bold', size: 12 },
+              formatter: (value) => {
+                return value > 0 ? value : '';
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+            y: { grid: { display: false }, beginAtZero: true, ticks: { stepSize: 1 } }
+          }
+        }
+      });
+    }
+
+    // 3. YEAR COUNT (Bar Chart)
+    function renderYearCount(projectList) {
+      destroyChart('yearCountChart');
+      
+      const counts = {};
+      projectList.forEach(p => {
+        const y = p.year;
+        counts[y] = (counts[y] || 0) + 1;
+      });
+
+      const labels = Object.keys(counts).sort((a, b) => {
+        if (a === 'Unknown') return 1;
+        if (b === 'Unknown') return -1;
+        return a - b;
+      });
+      const dataVals = labels.map(l => counts[l]);
+
+      const ctx = document.getElementById('yearCountChart');
+      charts.yearCountChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Projects',
+            data: dataVals,
+            backgroundColor: '#4f46e5',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { 
+            legend: { display: false },
+            datalabels: {
+              color: '#ffffff',
+              anchor: 'center',
+              align: 'center',
+              font: { weight: 'bold', size: 12 },
+              formatter: (value) => {
+                return value > 0 ? value : '';
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { display: false }, beginAtZero: true, ticks: { stepSize: 1 } }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
