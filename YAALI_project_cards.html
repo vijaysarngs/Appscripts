@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YAALI Project Cards</title>
+<style>
+:root {
+  --dark-blue:#10067A;
+  --border:#e5e7eb;
+  --muted:#475569;
+  --danger:#ef4444;
+}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;
+  background:#fff;
+  color:#0f172a;
+}
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:10;
+  background:#fff;
+  border-bottom:1px solid var(--border);
+  padding:14px 16px;
+}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:center;}
+.group{display:flex;flex-direction:column;min-width:140px;}
+.group label{font-weight:600;margin-bottom:4px;font-size:12px;color:var(--muted);}
+.input,select{
+  padding:10px 12px;
+  font-size:14px;
+  border-radius:8px;
+  border:1px solid #cbd5e1;
+  min-width:140px;
+  background:#fff;
+}
+#searchInput{min-width:240px;}
+.btn{
+  padding:10px 16px;
+  border:none;
+  border-radius:8px;
+  background:var(--dark-blue);
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+  font-size:14px;
+}
+.btn:hover{opacity:0.9;}
+.btn.secondary{background:#475569;}
+.meta{text-align:center;color:var(--muted);padding:10px 16px;}
+.chip{
+  background:#f1f5f9;
+  border:1px solid var(--border);
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+}
+/* Restricted Badge Style */
+.chip.restricted {
+  background: #fef2f2;
+  color: var(--danger);
+  border-color: #fecaca;
+  font-weight: bold;
+}
+.selected-panel{max-width:1100px;margin:0 auto;padding:10px 16px 0;}
+.content-card{
+  display:none;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:24px;
+  box-shadow:0 2px 10px rgba(2,6,23,.06);
+}
+.content-title{margin:0 0 12px;color:var(--dark-blue);font-size:22px;}
+.content-meta{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:12px 20px;
+  margin-top:12px;
+  font-size:15px;
+}
+.actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+iframe{
+  width:100%;
+  height:400px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  display:none;
+  margin-top:12px;
+}
+.grid{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:22px;
+  padding:22px;
+}
+.flip-card{
+  width:240px;
+  height:190px;
+  perspective:1000px;
+  cursor:pointer;
+  position:relative;
+}
+.flip-inner{
+  position:relative;
+  width:100%;
+  height:100%;
+  transition:transform .5s;
+  transform-style:preserve-3d;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:#fff;
+}
+.flip-card:hover .flip-inner{box-shadow:0 8px 22px rgba(2,6,23,.12);}
+.flip-card.selected .flip-inner{transform:rotateY(180deg);outline:2px solid var(--dark-blue);}
+
+/* RESTRICTED CARD STYLES */
+.flip-card.restricted {
+  cursor: not-allowed;
+}
+.flip-card.restricted .flip-inner {
+  opacity: 0.8;
+  background: #f9fafb;
+}
+
+.face{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  padding:16px;
+  border-radius:16px;
+  backface-visibility:hidden;
+  text-align:center;
+}
+.front{background:#fff;color:var(--dark-blue);}
+.back{background:var(--dark-blue);color:#fff;transform:rotateY(180deg);}
+.title{
+  font-weight:700;
+  font-size:16px;
+  text-align:center;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.subtitle{font-weight:600;font-size:13px;opacity:.9;margin-top:4px;}
+.view-tab-btn{
+  position:absolute;
+  top:6px;
+  right:6px;
+  border:none;
+  background:transparent;
+  color:var(--dark-blue);
+  font-size:14px;
+  cursor:pointer;
+  z-index:10;
+}
+.view-tab-btn:hover{color:#475569;}
+</style>
+</head>
+<body>
+<div class="topbar" id="topNav">
+  <div class="row">
+    <div class="group"><label>Search</label>
+      <input id="searchInput" class="input" placeholder="Search by title or description…">
+    </div>
+    <div class="group"><label>Region</label><select id="regionFilter"><option value="">All</option></select></div>
+    <div class="group"><label>Country</label><select id="countryFilter"><option value="">All</option></select></div>
+    <div class="group"><label>Year</label><select id="yearFilter"><option value="">All</option></select></div>
+    <div class="group"><label>Therapeutic Area</label><select id="therapeuticFilter"><option value="">All</option></select></div>
+    <div class="group"><label>Status</label><select id="statusFilter"><option value="">All</option></select></div>
+    <div class="group"><label>&nbsp;</label><button id="resetBtn" class="btn">Reset</button></div>
+  </div>
+</div>
+
+<div class="meta">
+  <span class="chip"><span id="visibleCount">0</span> shown</span>
+  <span class="chip"><span id="totalCount">0</span> total</span>
+</div>
+
+<div class="selected-panel">
+  <div id="contentCard" class="content-card">
+    <h3 id="contentTitle" class="content-title"></h3>
+    <p id="contentDesc"></p>
+    <div class="content-meta">
+      <p><strong>Region:</strong> <span id="contentRegion"></span></p>
+      <p><strong>Country:</strong> <span id="contentCountry"></span></p>
+      <p><strong>Completed:</strong> <span id="contentDate"></span></p>
+      <p><strong>Indication:</strong> <span id="contentIndication"></span></p>
+      <p><strong>Therapeutic Area:</strong> <span id="contentTherapeutic"></span></p>
+      <p><strong>Status:</strong> <span id="contentStatus"></span></p>
+    </div>
+    <div id="outputButtons" class="actions" style="display:none"></div>
+    <iframe id="outputIframe"></iframe>
+  </div>
+</div>
+
+<div id="cardGrid" class="grid">Loading projects…</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let projects=[],filtered=[],selected=-1,BASE_URL="";
+
+// REGION MAPPING LOGIC
+const REGION_MAPPING = {
+  'i8': ['spain', 'china', 'germany', 'brazil', 'canada', 'uk', 'france', 'italy'],
+  'Europe-North': ['belgium', 'luxembourg', 'czech republic', 'denmark', 'iceland', 'estonia', 'finland', 'ireland', 'latvia', 'lithuania', 'netherlands', 'norway', 'poland', 'sweden'],
+  'Europe-South': ['austria', 'bulgaria', 'croatia', 'greece', 'hungary', 'israel', 'portugal', 'romania', 'slovakia', 'slovenia', 'switzerland'],
+  'APAC': ['australia', 'hong kong', 'indonesia', 'malaysia', 'new zealand', 'philippines', 'singapore', 'south korea', 'taiwan', 'thailand, combodia, myanmar', 'vietnam'],
+  'CEETRIS': ['bangladesh', 'india', 'iran', 'pakistan', 'russia', 'turkey', 'cm azerbaijan and central asia (uzbekistan, kirgistan, tadjikistan, mongolia)', 'albania & kosovo', 'belarus', 'bosnia-herzegovina', 'georgia', 'kazakhstan', 'macedonia& kosovo', 'macedonia & kosovo', 'serbia', 'ukraine & moldova', 'turkmenistan'],
+  'Africa': ['algeria', 'drc democratic republic of congo', 'morocco', 'south africa & southern africa & indian ocean', 'tunisia & libya', 'east africa (kenya and ethiopia)', 'ghana', 'nigeria', 'west africa (ivory coast, cameroun, angola, portugese speaking countries)'],
+  'LATAM': ['argentina', 'central america and carribean cac & venezuela', 'chile', 'colombia', 'ecuador', 'mexico', 'peru', 'uruguay, bolivia, paraguay'],
+  'Middle East': ['egypt', 'gulf (kuwait, bahrain, qatar, oman, yemen)', 'iraq', 'levant (jordan, lebanon, palestine, syria)', 'saudi arabia', 'uae'],
+  'Global': ['global']
+};
+
+function determineRegion(countryStr) {
+  if(!countryStr) return "Unknown";
+  const c = countryStr.toLowerCase().trim();
+  for (const [region, countries] of Object.entries(REGION_MAPPING)) {
+    if (countries.some(k => c.includes(k))) {
+      return region;
+    }
+  }
+  return "Other";
+}
+
+// TEXT CORRECTION HELPER
+function fixTextIssues(str) {
+  if(!str) return "";
+  let s = str.toString();
+  
+  // Replace common misspellings from the data source
+  s = s.replace(/obseity|obesisty|obestiy/gi, "obesity");
+  s = s.replace(/dynamcis|dynmics|dinamics/gi, "dynamics");
+  s = s.replace(/visulaization/gi, "visualization");
+  
+  // Uniform Starting Letters Capitalization
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// STATUS CAPITALIZATION HELPER
+function capitalizeStatus(str) {
+  if(!str) return "";
+  const s = str.toString().trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+window.addEventListener("DOMContentLoaded",()=>{
+  if(typeof google !== 'undefined' && google.script){
+    google.script.run.withSuccessHandler(init).getProjectData();
+    google.script.run.withSuccessHandler(url=>{
+      BASE_URL=url;
+      sessionStorage.setItem("yaali_base_url", url);
+    }).getAppBaseUrl();
+  } else {
+    console.warn("Google Script environment not found.");
+  }
+});
+
+function init(rows){
+  projects=(rows||[]).map(r=>{
+    const ctry = r.country || "";
+    // Clean strings directly upon initialization
+    return {
+      title: fixTextIssues(r.title || r.name || r.Name || "Untitled"),
+      description: r.description || r.projectDescription || "",
+      country: ctry,
+      region: r.region || determineRegion(ctry), 
+      date: r.completedDate || r.date || r.Date || "", 
+      indication: r.indication || r.indications || "",
+      therapeutic: r.therapeutic || r.TA || "",
+      status: capitalizeStatus(r.status || ""), // Ensure Status is capitalized
+      accessPreferenceRestriction: r.accessPreferenceRestriction || "", 
+      output1: r.output1 || r.output || "",
+      output2: r.output2 || ""
+    };
+  });
+  
+  sessionStorage.setItem("yaali_project_rows", JSON.stringify(projects));
+  $('totalCount').textContent=projects.length;
+  buildFilters();
+  filterCards();
+}
+
+function getYear(dateStr){
+  if(!dateStr) return "";
+  const d = new Date(dateStr);
+  if(!isNaN(d.getFullYear())) return d.getFullYear().toString();
+  const match = String(dateStr).match(/\d{4}/);
+  return match ? match[0] : "";
+}
+
+function buildFilters(){
+  const invalid=["na","none","unassigned","n/a",""];
+  const regionSet=new Set(),countrySet=new Set(),therSet=new Set(),statusSet=new Set(),yearSet=new Set();
+  
+  projects.forEach(p=>{
+    if(p.region && !invalid.includes(p.region.toLowerCase()) && p.region !== "Unknown") regionSet.add(p.region);
+    if(p.country && !invalid.includes(p.country.toLowerCase())) countrySet.add(p.country);
+    const y = getYear(p.date);
+    if(y) yearSet.add(y);
+    if(p.therapeutic){
+      p.therapeutic.split(",").map(x=>x.trim()).forEach(t=>{
+        if(t && !invalid.includes(t.toLowerCase())) therSet.add(t);
+      });
+    }
+    // Note: status is already capitalized by this point, ensuring dropdown items are capital too
+    if(p.status && !invalid.includes(p.status.toLowerCase())) statusSet.add(p.status);
+  });
+
+  fill("regionFilter",regionSet);
+  fill("countryFilter",countrySet);
+  fill("therapeuticFilter",therSet);
+  fill("statusFilter",statusSet);
+  fill("yearFilter", yearSet);
+
+  $("searchInput").addEventListener("input",debounce(filterCards,200));
+  
+  // CASCADING LOGIC
+  $("regionFilter").addEventListener("change", () => {
+    updateCountryDropdown(); 
+    filterCards(); 
+  });
+
+  ["countryFilter","therapeuticFilter","statusFilter","yearFilter"].forEach(id=>{
+    $(id).addEventListener("change",filterCards)
+  });
+  
+  $("resetBtn").addEventListener("click",fullReset);
+}
+
+function updateCountryDropdown() {
+  const selectedRegion = $("regionFilter").value;
+  const invalid = ["na","none","unassigned","n/a",""];
+  const countrySet = new Set();
+
+  projects.forEach(p => {
+    if (!selectedRegion || p.region === selectedRegion) {
+      if (p.country && !invalid.includes(p.country.toLowerCase())) {
+        countrySet.add(p.country);
+      }
+    }
+  });
+
+  const currentCountry = $("countryFilter").value;
+  fill("countryFilter", countrySet);
+
+  if (currentCountry && countrySet.has(currentCountry)) {
+    $("countryFilter").value = currentCountry;
+  } else {
+    $("countryFilter").value = "";
+  }
+}
+
+function fill(id,set){
+  const el=$(id);
+  while(el.options.length>1)el.remove(1);
+  const isYear = id === "yearFilter";
+  [...set].sort((a,b) => isYear ? b-a : a.localeCompare(b)).forEach(v=>{
+    const o=document.createElement("option");
+    o.value=v;o.textContent=v;
+    el.appendChild(o);
+  });
+}
+
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+
+function filterCards(){
+  const q=$("searchInput").value.toLowerCase().trim();
+  const fr=$("regionFilter").value;
+  const fc=$("countryFilter").value;
+  const ft=$("therapeuticFilter").value;
+  const fs=$("statusFilter").value;
+  const fy=$("yearFilter").value;
+
+  filtered=projects.filter(p=>{
+    const taList=p.therapeutic.split(",").map(x=>x.trim());
+    const matchTA=!ft || taList.includes(ft);
+    const pYear = getYear(p.date);
+    const matchYear=!fy || pYear === fy;
+    const matchRegion = !fr || p.region === fr;
+
+    return matchRegion && 
+           (!fc||p.country===fc) &&
+           matchTA &&
+           (!fs||p.status===fs) &&
+           matchYear && 
+           (!q||(p.title.toLowerCase().includes(q)||p.description.toLowerCase().includes(q)));
+  });
+  renderGrid();
+}
+
+function renderGrid(){
+  const g=$("cardGrid");g.innerHTML="";
+  filtered.forEach((p,i)=>{
+    const c=document.createElement("div");c.className="flip-card";
+    const inner=document.createElement("div");inner.className="flip-inner";
+    const f=document.createElement("div");f.className="face front";
+    const b=document.createElement("div");b.className="face back";
+    
+    const isRestricted = (p.accessPreferenceRestriction || "").toLowerCase() === "restricted";
+    
+    if(isRestricted) {
+      c.classList.add("restricted");
+      c.title = "Access Denied: Restricted";
+    }
+
+    const displayYear = getYear(p.date);
+
+    const badgeHTML = isRestricted 
+      ? `<div class="chip restricted" style="margin-top:8px;font-size:11px;">🔒 Restricted</div>`
+      : (displayYear ? `<div class="chip" style="margin-top:8px;font-size:11px;">${displayYear}</div>` : '');
+
+    f.innerHTML=`
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+        <div class="title">${escapeHTML(p.title)}</div>
+        <div class="subtitle">${escapeHTML(p.indication||p.country||"NA")}</div>
+        ${badgeHTML}
+        <button class="view-tab-btn" title="Open detail view">↗</button>
+      </div>`;
+    
+    b.innerHTML=`<div><div class="title">${escapeHTML(p.title)}</div><div class="subtitle">Tap to view details</div></div>`;
+    inner.append(f,b);c.append(inner);
+
+    c.addEventListener("click",()=>{
+      if(isRestricted) {
+        alert("⚠️ Access Denied\n\nThis project is restricted and cannot be viewed.");
+        return; 
+      }
+      
+      const same=(selected===i);
+      closeAllPreviews();
+      document.querySelectorAll(".flip-card").forEach(x=>x.classList.remove("selected"));
+      if(same){selected=-1;hidePanel();}
+      else{
+        selected=i;
+        c.classList.add("selected");
+        showPanel(p);
+        
+        // SCROLL FIX: Taking Sticky Header into account to view the top of the detail card
+        setTimeout(() => {
+          const topbarHeight = $("topNav").offsetHeight || 80;
+          const targetY = $("contentCard").getBoundingClientRect().top + window.scrollY - topbarHeight - 16;
+          window.scrollTo({ top: targetY, behavior: "smooth" });
+        }, 50);
+      }
+    });
+
+    f.querySelector(".view-tab-btn").addEventListener("click",e=>{
+      e.stopPropagation(); 
+      
+      if(isRestricted) {
+        alert("⚠️ Access Denied\n\nThis project is restricted and cannot be viewed.");
+        return; 
+      }
+
+      sessionStorage.setItem("yaali_project_rows", JSON.stringify(projects));
+      const base = BASE_URL || sessionStorage.getItem("yaali_base_url") || location.href.split("?")[0];
+      const detailUrl = `${base}?page=detail&title=${encodeURIComponent(p.title)}`;
+      window.open(detailUrl, "_blank");
+    });
+
+    g.append(c);
+  });
+  $("visibleCount").textContent=filtered.length;
+}
+
+function hidePanel(){
+  $("contentCard").style.display="none";
+  $("outputIframe").style.display="none";
+}
+
+function showPanel(p){
+  $("contentTitle").textContent=p.title;
+  $("contentDesc").textContent=p.description||"";
+  $("contentRegion").textContent=p.region||"NA";
+  $("contentCountry").textContent=p.country||"NA";
+  
+  let dateStr = "NA";
+  if(p.date) {
+     const d = new Date(p.date);
+     dateStr = !isNaN(d.getTime()) ? d.toDateString() : p.date;
+  }
+  $("contentDate").textContent=dateStr;
+
+  $("contentIndication").textContent=p.indication||"NA";
+  $("contentTherapeutic").textContent=p.therapeutic||"NA";
+  $("contentStatus").textContent=p.status||"NA";
+
+  const outs=[];
+  if(p.output1&&isValid(p.output1))outs.push(p.output1);
+  if(p.output2&&isValid(p.output2))outs.push(p.output2);
+  const div=$("outputButtons");div.innerHTML="";
+  
+  outs.forEach((u,i)=>{
+    const n=i+1;
+    const pb=document.createElement("button");pb.className="btn";pb.textContent=`Preview ${n}`;pb.onclick=()=>showPreview(u);
+    const ob=document.createElement("button");ob.className="btn secondary";ob.textContent=`Open Output ${n}`;ob.onclick=()=>window.open(u,"_blank");
+    div.append(pb,ob);
+  });
+  div.style.display=outs.length?"flex":"none";
+  $("contentCard").style.display="block";
+}
+
+function showPreview(u){
+  closeAllPreviews();
+  const f=$("outputIframe");
+  f.src=toPreview(u);
+  f.style.display="block";
+}
+
+function closeAllPreviews(){
+  const f=$("outputIframe");
+  f.src="about:blank";
+  f.style.display="none";
+}
+
+function isValid(u){return /^https:\/\/(drive|docs|.*youtube)\.google/.test(u)||/^https:\/\/.*youtube\.com/.test(u);}
+function toPreview(u){
+  let out=u.trim();
+  if(out.includes("drive.google.com"))out=out.replace(/\/view.*$/,"/preview");
+  if(out.includes("docs.google.com"))out=out.replace(/\/edit.*$/,"/preview");
+  if(out.includes("youtube.com/watch?v=")){
+    try{const v=new URL(out).searchParams.get("v");if(v)out="https://www.youtube.com/embed/"+v;}catch(e){}
+  }
+  return out;
+}
+
+function fullReset(){
+  $("searchInput").value="";
+  ["regionFilter","countryFilter","therapeuticFilter","statusFilter","yearFilter"].forEach(id=>$(id).value="");
+  
+  updateCountryDropdown(); 
+  
+  selected=-1;
+  closeAllPreviews();
+  hidePanel();
+  document.querySelectorAll(".flip-card").forEach(x=>x.classList.remove("selected"));
+  filterCards();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function escapeHTML(s){return String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+</script>
+</body>
+</html>
