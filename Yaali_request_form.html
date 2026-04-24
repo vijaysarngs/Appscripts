@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Submit a Project to Team Yaali</title>
+  <style>
+    body {
+      font-family:'Segoe UI',sans-serif;
+      background:#f4f6fa;
+      margin:0; padding:2rem;
+      display:flex; flex-direction:column; align-items:center;
+    }
+    .form-container {
+      width:100%; max-width:750px;
+      background:#fff; padding:2rem;
+      border-radius:10px;
+      box-shadow:0 4px 16px rgba(0,0,0,.08);
+    }
+    h1 {
+      color:#002b80; text-align:center;
+      font-size:28px; margin-bottom:.5rem;
+    }
+    p.desc {
+      text-align:center; margin-bottom:1rem; color:#475569;
+    }
+
+    /* --- NEW COUNTER STYLES --- */
+    .counter-wrapper {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .counter-badge {
+      display: inline-block;
+      background: #f1f7ff;
+      color: #002b80;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid #cdddf5;
+    }
+    .counter-badge strong {
+      font-weight: 700;
+      font-size: 15px;
+      margin-left: 4px;
+    }
+
+    label {
+      font-weight:600;
+      font-size:14px;
+      margin-bottom:6px;
+      display:block;
+      color:#002b80;
+    }
+
+    input[type="text"], input[type="email"], input[type="date"], textarea, select {
+      width:100%;
+      padding:10px 12px;
+      border:1px solid #d1d5db;
+      border-radius:6px;
+      background:#fff;
+      font-size:14px;
+      transition:border-color .2s, box-shadow .2s;
+      box-sizing: border-box;
+    }
+
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="date"]:focus,
+    textarea:focus,
+    select:focus {
+      outline:none;
+      border-color:#002b80;
+      box-shadow:0 0 0 3px rgba(0,43,128,.1);
+    }
+
+    select:disabled {
+      background-color: #f3f4f6;
+      color: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    textarea { resize:vertical; min-height:100px; }
+
+    .checkbox-group { margin-bottom:1.5rem; }
+    .checkbox-option { display:flex; align-items:center; margin-bottom:8px; }
+    .checkbox-option input { margin-right:10px; }
+    #otherGoalInput { display:none; margin-top:.5rem; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    @media(min-width:900px){
+      .two-col {
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+      }
+    }
+
+    .section {
+      margin-top:1.5rem; padding:1rem;
+      border:1px solid #e2e8f0; border-radius:8px;
+      background:#f9fbff;
+    }
+
+    .links-section {
+      background:#f1f7ff;
+      border:1px solid #cdddf5;
+      border-radius:8px;
+      padding:1rem;
+      margin-top:1.5rem;
+    }
+    .links-section textarea {
+      min-height:80px;
+    }
+    .links-section .hint {
+      margin-top:6px;
+      font-size:12px;
+      color:#64748b;
+    }
+
+    .submit-wrapper {
+      display:flex; flex-direction:column;
+      align-items:center; margin-top:2rem; position:relative;
+    }
+    .submit-btn {
+      background:#002b80; color:#fff;
+      padding:12px 28px; border:none; border-radius:6px;
+      cursor:pointer; font-weight:bold; font-size:16px;
+      transition:background-color .2s, transform .1s;
+    }
+    .submit-btn:active { background:#001e5f; transform:scale(.97); }
+    .submit-btn[disabled] { background:#aaa; cursor:not-allowed; }
+    #loading { margin-top:.5rem; font-size:14px; color:#666; }
+
+    .banner {
+      margin-top:1rem; padding:12px; border-radius:6px;
+      width:100%; max-width:500px; text-align:center; font-weight:600;
+      display:none;
+    }
+    .banner.success { background:#dcfce7; color:#166534; }
+    .banner.error { background:#fee2e2; color:#991b1b; }
+
+    .limit-note { font-size:12px; color:#555; margin-top:.25rem; }
+    .hint { font-size:12px; color:#6b7280; margin-top:-6px; margin-bottom:12px; }
+    
+    .important-note {
+      font-size: 13px;
+      color: #d9534f;
+      font-weight: 600;
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h1>Submit a Project</h1>
+    <p class="desc">Share your idea with Team Yaali. Your submission will be emailed directly.</p>
+
+    <div class="counter-wrapper">
+      <div class="counter-badge">
+        Total Projects Requested: <strong id="counterDisplay">...</strong>
+      </div>
+    </div>
+
+    <form id="projectForm">
+      <div class="two-col">
+        <div>
+          <label>Requestor Name *</label>
+          <input type="text" name="name" required>
+        </div>
+        <div>
+          <label>Email *</label>
+          <input type="email" name="email" required>
+        </div>
+      </div>
+
+      <div style="margin-top: 1rem; margin-bottom: 1rem;">
+        <label>Project Title *</label>
+        <input type="text" name="projectTitle" required>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <label>Region *</label>
+          <select id="regionSelect" name="country" required>
+            <option value="" disabled selected>Select Region</option>
+          </select>
+        </div>
+        <div>
+          <label>Country *</label>
+          <select id="countrySelect" name="location" required disabled>
+            <option value="" disabled selected>Select Region first</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-top: 1rem;">
+        <div>
+          <label>Therapeutic Area *</label>
+          <select name="diseaseArea" id="taSelect" required>
+            <option value="" disabled selected>Select Area</option>
+            <option value="Anemia">Anemia</option>
+            <option value="Cardiology / Vascular Diseases">Cardiology / Vascular Diseases</option>
+            <option value="Dermatology">Dermatology</option>
+            <option value="Infectious Diseases">Infectious Diseases</option>
+            <option value="Inflammation">Inflammation</option>
+            <option value="Metabolism / Bone">Metabolism / Bone</option>
+            <option value="Neuroscience (NS)">Neuroscience (NS)</option>
+            <option value="Non-Malignant Hematology">Non-Malignant Hematology</option>
+            <option value="Oncology">Oncology</option>
+            <option value="Ophthalmology">Ophthalmology</option>
+            <option value="Respiratory">Respiratory</option>
+            <option value="Rx Others">Rx Others</option>
+            <option value="Transplant">Transplant</option>
+            <option value="Urology">Urology</option>
+            <option value="Virology">Virology</option>
+          </select>
+        </div>
+        <div>
+          <label>Therapeutic Indication *</label>
+          <input type="text" name="therapeuticArea" id="indicationInput" placeholder="Enter Indication (e.g. Lung Cancer)" required>
+        </div>
+      </div>
+      <div style="margin-top: 1rem;">
+        <label>Expected Deadline</label>
+        <input type="date" name="deadline" >
+      </div>
+
+      <div style="margin-top: 1rem;">
+        <label>Project Description *</label>
+        <textarea name="description" placeholder="Briefly describe your project..." required></textarea>
+      </div>
+
+      <label>Expected Outcomes * (select one or more)</label>
+      <div class="checkbox-group">
+        <label class="checkbox-option"><input type="checkbox" name="goals" value="Analytical Report" class="goal-check"> Analytical Report</label>
+        <label class="checkbox-option"><input type="checkbox" name="goals" value="Chatbot" class="goal-check"> Gen AI Solutions (eg Chatbot)</label>
+        <label class="checkbox-option"><input type="checkbox" name="goals" value="Data Collection" class="goal-check"> Data Visualization</label>
+        <label class="checkbox-option"><input type="checkbox" name="goals" value="Other" id="otherGoalChk" class="goal-check"> Other</label>
+        <input type="text" id="otherGoalInput" placeholder="Please specify..." />
+        <div id="otherGoalNote" class="important-note" style="display:none;">
+          Note: Please provide specific details about the other goal.
+        </div>
+      </div>
+
+      <div class="links-section">
+        <label>Links to Files (Optional)</label>
+        <textarea id="linksText" placeholder="Paste Drive/Dropbox/OneDrive links (one per line)"></textarea>
+        <div class="hint">
+          Tip: For Google Drive links, make sure the files are shared with
+          <strong id="receiverEmailHint"></strong> so the recipient can view them.
+        </div>
+      </div>
+
+      <div class="section">
+        <label>Attach Files *</label>
+        <input type="file" id="fileInput" name="files" multiple required>
+        
+        <div class="important-note">
+          Note: Attached files must contain a descriptive explanation of the project.
+        </div>
+        
+        <div id="limitNote" class="limit-note"></div>
+        <div class="hint">Max Gmail attachment size is ~25MB. Use links above for larger files.</div>
+      </div>
+
+      <label style="margin-top:1rem;">
+        <input type="checkbox" name="copyRequest"> Email me a copy of my submission
+      </label>
+
+      <div class="submit-wrapper">
+        <button type="submit" class="submit-btn" id="submitBtn">Submit Project</button>
+        <div id="loading" style="display:none;">Submitting...</div>
+        <div id="banner" class="banner"></div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // --- DATA CONFIGURATION ---
+    const REGION_DATA = {
+      'i8': [
+        'Brazil', 'Canada', 'China', 'France', 'Germany', 'Italy', 'Spain', 'UK'
+      ],
+      'Europe-North': [
+        'Belgium', 'Czech Republic', 'Denmark', 'Estonia', 'Finland', 'Iceland', 
+        'Ireland', 'Latvia', 'Lithuania', 'Luxembourg', 'Netherlands', 'Norway', 
+        'Poland', 'Sweden'
+      ],
+      'Europe-South': [
+        'Austria', 'Bulgaria', 'Croatia', 'Greece', 'Hungary', 'Israel', 
+        'Portugal', 'Romania', 'Slovakia', 'Slovenia', 'Switzerland'
+      ],
+      'APAC': [
+        'Australia', 'Hong Kong', 'Indonesia', 'Malaysia', 'New Zealand', 
+        'Philippines', 'Singapore', 'South Korea', 'Taiwan', 
+        'Thailand, Combodia, Myanmar', 'Vietnam'
+      ],
+      'CEETRIS': [
+        'Albania & Kosovo', 'Bangladesh', 'Belarus', 'Bosnia-Herzegovina', 
+        'CM Azerbaijan and Central Asia (Uzbekistan, Kirgistan, Tadjikistan, Mongolia)', 
+        'Georgia', 'India', 'Iran', 'Kazakhstan', 'Macedonia & Kosovo', 
+        'Pakistan', 'Russia', 'Serbia', 'Turkey', 'Turkmenistan', 
+        'Ukraine & Moldova'
+      ],
+      'Africa': [
+        'Algeria', 'DRC democratic republic of Congo', 
+        'East Africa (Kenya and Ethiopia)', 'Ghana', 'Morocco', 'Nigeria', 
+        'South Africa & Southern Africa & Indian Ocean', 'Tunisia & Libya', 
+        'West Africa (Ivory Coast, Cameroun, Angola, portugese speaking countries)'
+      ],
+      'LATAM': [
+        'Argentina', 'Central america and carribean CAC & Venezuela', 'Chile', 
+        'Colombia', 'Ecuador', 'Mexico', 'Peru', 'Uruguay, Bolivia, Paraguay'
+      ],
+      'Middle East': [
+        'Egypt', 'Gulf (kuwait, bahrain, qatar, oman, yemen)', 'Iraq', 
+        'Levant (jordan, lebanon, palestine, syria)', 'Saudi Arabia', 'UAE'
+      ],
+      'Global':[
+        'Global'
+      ]
+    };
+
+    // --- DOM ELEMENTS ---
+    const regionSelect = document.getElementById('regionSelect');
+    const countrySelect = document.getElementById('countrySelect');
+    const form = document.getElementById('projectForm');
+    const otherChk = document.getElementById('otherGoalChk');
+    const otherInput = document.getElementById('otherGoalInput');
+    const loadingText = document.getElementById('loading');
+    const submitBtn = document.getElementById('submitBtn');
+    const limitNote = document.getElementById('limitNote');
+    const receiverHint = document.getElementById('receiverEmailHint');
+    const banner = document.getElementById('banner');
+
+    let MAX_FILES = 3, MAX_FILE_MB = 7;
+
+    // --- INITIALIZATION ---
+    
+    // 1. Populate Regions on Load
+    (function populateRegions() {
+      const regions = Object.keys(REGION_DATA);
+      regions.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = r;
+        regionSelect.appendChild(opt);
+      });
+    })();
+
+    // 2. Handle Region Change (Cascading Dropdown)
+    regionSelect.addEventListener('change', function() {
+      const selectedRegion = this.value;
+      
+      // Clear previous countries
+      countrySelect.innerHTML = '<option value="" disabled selected>Select Country</option>';
+      
+      if (selectedRegion && REGION_DATA[selectedRegion]) {
+        countrySelect.disabled = false;
+        const countries = REGION_DATA[selectedRegion];
+        countries.sort(); 
+        countries.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          countrySelect.appendChild(opt);
+        });
+      } else {
+        countrySelect.disabled = true;
+        countrySelect.innerHTML = '<option value="" disabled selected>Select Region first</option>';
+      }
+    });
+
+    // 3. Load Config from Server
+    google.script.run.withSuccessHandler(cfg => {
+      if (cfg) {
+        MAX_FILES = cfg.maxFiles ?? MAX_FILES;
+        MAX_FILE_MB = cfg.maxFileMB ?? MAX_FILE_MB;
+        if (cfg.receiverEmail) receiverHint.textContent = cfg.receiverEmail;
+      }
+      limitNote.textContent = `You may attach up to ${MAX_FILES} files, ≤ ${MAX_FILE_MB} MB each.`;
+    }).getConfig();
+
+    // 4. FETCH NEW COUNTER
+    google.script.run.withSuccessHandler(count => {
+      document.getElementById('counterDisplay').textContent = count;
+    }).getSubmissionCount();
+
+    // --- EVENT LISTENERS ---
+
+    otherChk.addEventListener('change', () => {
+      otherInput.style.display = otherChk.checked ? 'block' : 'none';
+      otherInput.required = otherChk.checked;
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Validation: At least one goal
+      const checkedGoals = document.querySelectorAll('.goal-check:checked');
+      if (checkedGoals.length === 0) {
+        finish("Please select at least one Primary Goal.", false);
+        return;
+      }
+
+      submitBtn.disabled = true;
+      loadingText.textContent = 'Preparing submission...';
+      loadingText.style.display = 'block';
+      banner.style.display = 'none';
+
+      const fd = new FormData(form);
+      
+      const payload = {
+        name: fd.get('name'),
+        email: fd.get('email'),
+        projectTitle: fd.get('projectTitle'),
+        country: fd.get('country'),
+        venue: fd.get('location'), 
+        diseaseArea: fd.get('diseaseArea'),
+        therapeuticArea: fd.get('therapeuticArea'),
+        deadline: fd.get('deadline'),
+        description: fd.get('description'),
+        goals: fd.getAll('goals'),
+        otherGoal: document.getElementById('otherGoalInput').value,
+        copyRequest: fd.get('copyRequest') === 'on',
+        linksText: document.getElementById('linksText').value.trim(),
+        files: []
+      };
+
+      const files = Array.from(document.getElementById('fileInput').files);
+      if (files.length > MAX_FILES) return finish(`Too many files. Limit is ${MAX_FILES}.`, false);
+      
+      for (const f of files) {
+        if (f.size > MAX_FILE_MB * 1024 * 1024) {
+          return finish(`"${f.name}" exceeds the ${MAX_FILE_MB} MB limit.`, false);
+        }
+      }
+
+      if (files.length) {
+        loadingText.textContent = 'Reading files...';
+        payload.files = await Promise.all(files.map(file => new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({
+            filename: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            bytes: reader.result.split(',')[1]
+          });
+          reader.readAsDataURL(file);
+        })));
+      }
+
+      loadingText.textContent = 'Sending email...';
+      
+      // SEND WITH UPDATED HANDLER
+      google.script.run
+        .withSuccessHandler(res => finish(res && res.message || 'Submission complete.', res && res.ok, res && res.newTotal))
+        .withFailureHandler(err => finish(' Failed: ' + (err?.message || err), false))
+        .submitProject(payload);
+
+      // UPDATED FINISH LOGIC
+      function finish(msg, success=true, newTotal=null) {
+        loadingText.style.display = 'none';
+        submitBtn.disabled = false;
+        banner.textContent = msg;
+        banner.className = 'banner ' + (success ? 'success' : 'error');
+        banner.style.display = 'block';
+        
+        if (success) {
+          form.reset();
+          otherInput.style.display = 'none';
+          countrySelect.innerHTML = '<option value="" disabled selected>Select Region first</option>';
+          countrySelect.disabled = true;
+          
+          // Dynamically update the counter
+          if (newTotal !== null && newTotal !== undefined) {
+            document.getElementById('counterDisplay').textContent = newTotal;
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
