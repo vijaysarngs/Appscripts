@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+
+  <style>
+    :root {
+      --ocean:#d9e7f3; --land:#e7ddcc;
+      --blue-low:#9fd7cf; --blue-high:#0b5f59;
+      --red-min:#eea8a8; --red-max:#8b1c1c;
+      --text:#0c1524; --muted:#4b5563;
+      --border:#cbd5e1; --chip:#e9edf2;
+      --accent:#0b5f59; --shadow:0 10px 28px rgba(0,0,0,.14);
+      --danger:#ef4444; 
+    }
+
+    html,body{
+      height:100%;margin:0;
+      font-family:Inter,Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:linear-gradient(180deg,#eef3f8 0%,#e6edf6 100%);
+    }
+
+    /* === Layout === */
+    .map-wrap{ position:relative; width:100%; height:calc(100vh - 80px); margin-top:80px; }
+    #map{ width:100%; height:100%; }
+
+    header{
+      position:fixed; top:0; left:0; right:0; z-index:3;
+      display:flex; flexDirection:column; gap:10px; padding:14px 16px;
+      background:rgba(255,255,255,0.97); border-bottom:1px solid var(--border);
+      box-shadow:0 4px 10px rgba(0,0,0,0.08); border-radius:0 0 16px 16px;
+    }
+
+    .headline{font-size:17px;font-weight:800;color:var(--text)}
+    .metrics{display:flex;gap:8px;flex-wrap:wrap}
+    .pill{
+      display:flex;align-items:center;gap:6px;
+      background:var(--chip);border:1px solid var(--border);
+      padding:6px 10px;border-radius:999px;font-size:12px
+    }
+
+    /* === Filters === */
+    .filters{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .dd{position:relative}
+    .dd-btn{
+      background:#fff;border:1px solid var(--border);border-radius:999px;
+      padding:8px 12px;font-size:12px;cursor:pointer;
+    }
+    .dd.open .dd-btn{border-color:var(--accent);box-shadow:0 0 0 2px rgba(11,95,89,.16)}
+    .dd-menu{
+      position:absolute;top:calc(100% + 6px);left:0;min-width:240px;
+      background:#fff;border:1px solid var(--border);
+      border-radius:12px;box-shadow:var(--shadow);display:none;z-index:10;padding:6px
+    }
+    /* This keeps the Status dropdown from getting cut off by the right edge of the screen */
+    #ddStatus .dd-menu { left: auto; right: 0; }
+    
+    .dd.open .dd-menu{display:block}
+    
+    /* We moved the scroll to the list, so the buttons stay pinned at the bottom */
+    .dd-list{display:flex;flex-direction:column;gap:4px;padding-right:4px;max-height:250px;overflow-y:auto;}
+    .dd-list label{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px;border-radius:8px}
+    .dd-list label:hover{background:#eef7f6}
+    .dd-actions{display:flex;justify-content:space-between;gap:8px;margin-top:8px}
+    .btn{padding:8px 10px;border-radius:10px;border:1px solid var(--border);
+          background:#f1f5f9;cursor:pointer;font-size:12px}
+    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+    /* === Table Buttons === */
+    .btn-icon {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--accent); border-radius: 4px; cursor: pointer;
+      padding: 2px 8px; font-weight: bold; transition: all 0.2s;
+    }
+    .btn-icon:hover { background: var(--accent); color: #fff; }
+
+    .btn-icon.restricted {
+      color: var(--danger); border-color: var(--danger); opacity: 0.8; cursor: not-allowed;
+    }
+    .btn-icon.restricted:hover { background: var(--danger); color: white; opacity: 1; }
+
+    /* === Side Panel === */
+    .side{padding:16px;display:flex;flex-direction:column;gap:12px;background:#fff}
+    .card{ background:#fff;border:1px solid var(--border); border-radius:14px;padding:16px;box-shadow:var(--shadow) }
+    .card h3{margin:0 0 8px;font-size:14px;font-weight:700;color:var(--muted)}
+    .big{font-size:24px;font-weight:800}
+    .muted{color:var(--muted);font-size:12px}
+    .proj-table{width:100%;border-collapse:collapse;font-size:12px}
+    .proj-table th,.proj-table td{border:1px solid var(--border);padding:6px 8px;text-align:left}
+    .proj-table th{background:#f8fafc;position:sticky;top:0;font-weight:600}
+
+    /* === Modal === */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(12, 21, 36, 0.6); display: none;
+      align-items: center; justify-content: center; z-index: 10000;
+      backdrop-filter: blur(3px);
+    }
+    .modal-content {
+      background: white; padding: 32px 32px 24px; border-radius: 16px;
+      max-width: 420px; width: 90%; text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      position: relative; /* Added for absolute positioning of close button */
+    }
+    .modal-content h4 { margin: 0 0 16px 0; color: var(--text); font-size: 20px; font-weight: 700; }
+    .modal-content p { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 0; }
+    
+    /* New Close Button Styles */
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: transparent;
+      border: none;
+      font-size: 24px;
+      color: var(--muted);
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    /* === CUSTOM TOOLTIP STYLES === */
+    div.google-visualization-tooltip {
+      border: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+    .tooltip-box {
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: white;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      font-family: 'Inter', sans-serif;
+      color: #1e293b;
+      min-width: 150px;
+      pointer-events: none;
+    }
+    .tt-title {
+      font-weight: 800;
+      font-size: 14px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+      color: #0f172a;
+    }
+    .tt-total {
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+    .tt-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+    .tt-row-left {
+      display: flex;
+      align-items: center;
+    }
+    .tt-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+      display: inline-block;
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <div class="headline">Yaali Global Dashboard</div>
+    <div class="metrics" id="globalMetrics">Loading...</div>
+
+    <div class="filters">
+      <div id="ddYear" class="dd">
+        <button class="dd-btn">Year ▾</button>
+        <div class="dd-menu">
+          <div class="dd-list"></div>
+          <div class="dd-actions">
+            <button class="btn" data-clear="year">Clear</button>
+            <button class="btn primary" data-apply="year">Apply</button>
+          </div>
+        </div>
+      </div>
+      
+      <div id="ddRegion" class="dd">
+        <button class="dd-btn">Region ▾</button>
+        <div class="dd-menu">
+          <div class="dd-list"></div>
+          <div class="dd-actions">
+            <button class="btn" data-clear="region">Clear</button>
+            <button class="btn primary" data-apply="region">Apply</button>
+          </div>
+        </div>
+      </div>
+      <div id="ddInd" class="dd">
+        <button class="dd-btn">Indication ▾</button>
+        <div class="dd-menu">
+          <div class="dd-list"></div>
+          <div class="dd-actions">
+            <button class="btn" data-clear="ind">Clear</button>
+            <button class="btn primary" data-apply="ind">Apply</button>
+          </div>
+        </div>
+      </div>
+      <div id="ddStatus" class="dd">
+        <button class="dd-btn">Status ▾</button>
+        <div class="dd-menu">
+          <div class="dd-list"></div>
+          <div class="dd-actions">
+            <button class="btn" data-clear="status">Clear</button>
+            <button class="btn primary" data-apply="status">Apply</button>
+          </div>
+        </div>
+      </div>
+      <button id="resetAllBtn" class="btn" style="border-radius:999px">Reset</button>
+    </div>
+  </header>
+
+  <div class="map-wrap"><div id="map"></div></div>
+
+  <aside class="side">
+    <div class="card">
+      <h3>Region / Country</h3>
+      <div class="big" id="panelTitle">Global</div>
+      <div class="muted" id="regionCountries">All</div>
+    </div>
+    <div class="card">
+      <h3>Projects</h3>
+      <div class="big" id="countryProjects">—</div>
+    </div>
+    <div class="card">
+      <h3>Projects Table</h3>
+      <div style="max-height:300px;overflow:auto">
+        <table id="regionProjectsTable" class="proj-table"></table>
+      </div>
+    </div>
+  </aside>
+
+  <div id="customModal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <h4 id="modalTitle">Info Restricted</h4>
+      <p id="modalMessage">...</p>
+    </div>
+  </div>
+
+<script>
+google.charts.load("current", { packages: ["geochart"] });
+google.charts.setOnLoadCallback(initDashboard);
+
+let projects=[], filtered=[], chart, dataTable, BASE_URL="";
+let viewState={mode:"global",region:null};
+let regionHints={}, yearFilters=[], regionFilters=[], indicationFilters=[], statusFilters=[];
+
+/* === 1. Robust Initialization === */
+async function initDashboard(){
+  sessionStorage.removeItem("yaaliData"); // Clear cache to fix stale data
+
+  try {
+    const [data, hints] = await Promise.all([
+      runServer("getProjectsData"),
+      runServer("getRegionCountryHints")
+    ]);
+
+    projects = data || [];
+    regionHints = hints || {};
+    
+    console.log(`✅ Loaded ${projects.length} projects.`);
+    setupDataReady();
+
+  } catch (err) {
+    console.error("❌ Init Failed:", err);
+    document.getElementById("globalMetrics").innerHTML = `<span style="color:red">Error: ${err.message}</span>`;
+  }
+}
+
+function runServer(func) {
+  return new Promise((resolve, reject) => {
+    if(typeof google === 'undefined') { resolve([]); return; }
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[func]();
+  });
+}
+
+function setupDataReady(){
+  filtered = [...projects];
+  buildDropdowns();
+  drawGlobalMap();
+}
+
+/* === Helper for Year Extraction === */
+function extractYear(dateString) {
+  if (dateString) {
+    const d = new Date(dateString);
+    if (!isNaN(d.getFullYear())) {
+      return d.getFullYear().toString();
+    }
+  }
+  return 'Unknown';
+}
+
+/* === 2. Dropdowns === */
+function buildDropdowns(){
+  const yrSet=new Set(), regSet=new Set(), indSet=new Set(), stSet=new Set();
+  const invalid=["na","n/a","unassigned","none",""];
+  
+  projects.forEach(p=>{
+    // Tag each project with a year for easy filtering later
+    p._computedYear = extractYear(p.completedDate);
+    if(p._computedYear !== 'Unknown') yrSet.add(p._computedYear);
+    
+    if(p.region && !invalid.includes(p.region.toLowerCase())) regSet.add(p.region);
+    if(p.indication && !invalid.includes(p.indication.toLowerCase())) indSet.add(p.indication);
+    if(p.status && !invalid.includes(p.status.toLowerCase())) stSet.add(p.status);
+  });
+  
+  // Sort Year Descending (newest first), others alphabetically
+  fillDropdown("ddYear", [...yrSet].sort((a,b) => b - a));
+  fillDropdown("ddRegion", [...regSet].sort());
+  fillDropdown("ddInd", [...indSet].sort());
+  fillDropdown("ddStatus", [...stSet].sort());
+  setupDropdownLogic();
+}
+
+function fillDropdown(id, list){
+  const dd = document.getElementById(id), box = dd.querySelector(".dd-list");
+  box.innerHTML = list.map(v => `<label><input type="checkbox" value="${v}">${v}</label>`).join("");
+}
+
+function setupDropdownLogic(){
+  document.querySelectorAll(".dd").forEach(dd=>{
+    const btn = dd.querySelector(".dd-btn");
+    btn.onclick = e => {
+      e.stopPropagation();
+      dd.classList.toggle("open");
+      document.querySelectorAll(".dd").forEach(o=>{ if(o!==dd) o.classList.remove("open"); });
+    };
+  });
+  document.addEventListener("click", e=>{
+    if(!e.target.closest(".dd")) document.querySelectorAll(".dd.open").forEach(d=>d.classList.remove("open"));
+  });
+  document.querySelectorAll("[data-clear]").forEach(btn=>{
+    btn.onclick = e => {
+      const id = e.target.dataset.clear;
+      document.querySelectorAll(`#dd${capitalize(id)} input:checked`).forEach(c=>c.checked=false);
+      applyFilters();
+    };
+  });
+  document.querySelectorAll("[data-apply]").forEach(btn => {
+    btn.onclick = e => {
+      applyFilters(); // Apply the filters
+      e.target.closest('.dd').classList.remove('open'); // Close the specific dropdown
+    };
+  });
+  document.getElementById("resetAllBtn").onclick=resetAll;
+}
+
+function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+function checkedVals(id){ return [...document.querySelectorAll(`#${id} input:checked`)].map(i=>i.value); }
+
+/* === 3. Filters === */
+function applyFilters(){
+  yearFilters = checkedVals("ddYear");
+  regionFilters = checkedVals("ddRegion");
+  indicationFilters = checkedVals("ddInd");
+  statusFilters = checkedVals("ddStatus");
+  
+  filtered = projects.filter(p=>{
+    const y = !yearFilters.length || yearFilters.includes(p._computedYear);
+    const r = !regionFilters.length || regionFilters.includes(p.region);
+    const i = !indicationFilters.length || indicationFilters.includes(p.indication);
+    const s = !statusFilters.length || statusFilters.includes(p.status);
+    return y && r && i && s;
+  });
+  drawGlobalMap();
+}
+
+function resetAll(){
+  yearFilters=[]; regionFilters=[]; indicationFilters=[]; statusFilters=[];
+  filtered = [...projects];
+  document.querySelectorAll(".dd input").forEach(i=>i.checked=false);
+  drawGlobalMap();
+}
+
+/* === Custom Tooltip Helpers === */
+function getStatusKey(statusRaw) {
+  const s = (statusRaw || "").toLowerCase();
+  if (s.includes("complete")) return "completed";
+  if (s.includes("track") || s === "ongoing") return "ontrack";
+  if (s.includes("pipeline") || s.includes("stop")) return "pipeline";
+  return "other";
+}
+
+function getTooltipHTML(country, stat) {
+  return `
+    <div class="tooltip-box">
+      <div class="tt-title">${country}</div>
+      <div class="tt-total">${stat.total} Total Project${stat.total > 1 ? 's' : ''}</div>
+      ${stat.completed > 0 ? `<div class="tt-row"><div class="tt-row-left"><span class="tt-dot" style="background:#10b981;"></span>Completed</div><b>${stat.completed}</b></div>` : ''}
+      ${stat.ontrack > 0 ? `<div class="tt-row"><div class="tt-row-left"><span class="tt-dot" style="background:#3b82f6;"></span>On Track</div><b>${stat.ontrack}</b></div>` : ''}
+      ${stat.pipeline > 0 ? `<div class="tt-row"><div class="tt-row-left"><span class="tt-dot" style="background:#f59e0b;"></span>Pipeline</div><b>${stat.pipeline}</b></div>` : ''}
+      ${stat.other > 0 ? `<div class="tt-row"><div class="tt-row-left"><span class="tt-dot" style="background:#9ca3af;"></span>Other</div><b>${stat.other}</b></div>` : ''}
+    </div>`;
+}
+
+/* === 4. Map Logic === */
+function drawGlobalMap(){
+  viewState = {mode:"global", region:null};
+  const stats = {};
+  
+  // Aggregate data and categorize by status
+  filtered.forEach(p=>{
+    const toks = (p.countryToken||p.countryToken||"").split(/[,;&]+/).map(c=>c.trim());
+    const stKey = getStatusKey(p.status);
+    
+    toks.forEach(c=>{ 
+      if(!/^global$/i.test(c)) {
+        if (!stats[c]) stats[c] = { total: 0, completed: 0, ontrack: 0, pipeline: 0, other: 0 };
+        stats[c].total++;
+        stats[c][stKey]++;
+      } 
+    });
+  });
+
+  const arr = [
+    [{type: 'string', label: 'Location'}, {type: 'number', label: 'Projects'}, {type: 'string', role: 'tooltip', p: { html: true }}]
+  ];
+  
+  for(const [c, stat] of Object.entries(stats)) {
+    arr.push([c, stat.total, getTooltipHTML(c, stat)]);
+  }
+  
+  dataTable = google.visualization.arrayToDataTable(arr);
+  const opts = {
+    colorAxis:{colors:["#9fd7cf","#0b5f59"]},
+    backgroundColor:"#eef3f8",
+    datalessRegionColor:"#e7ddcc",
+    legend:"none",
+    tooltip: { isHtml: true }
+  };
+  
+  if(!chart) chart = new google.visualization.GeoChart(document.getElementById("map"));
+  
+  google.visualization.events.removeAllListeners(chart); 
+  chart.draw(dataTable, opts);
+  google.visualization.events.addListener(chart, "select", handleGlobalSelect);
+  updatePanelGlobal();
+}
+
+function handleGlobalSelect(){
+  const sel = chart.getSelection();
+  if(!sel.length) return;
+  const country = dataTable.getValue(sel[0].row, 0);
+  const region = guessRegion(country);
+  if(region) drawRegionMap(region);
+}
+
+function guessRegion(c){
+  const lc = c.toLowerCase();
+  for(const[r,list] of Object.entries(regionHints)){
+    if(list.map(x=>x.toLowerCase()).includes(lc)) return r;
+  } return null;
+}
+
+function drawRegionMap(region){
+  viewState = {mode:"region", region};
+  const countries = regionHints[region] || [];
+  const stats = {};
+  
+  countries.forEach(c => stats[c] = { total: 0, completed: 0, ontrack: 0, pipeline: 0, other: 0 });
+
+  filtered.forEach(p=>{
+    if(p.region===region){
+      const toks = (p.countryToken||"").split(/[,;&]+/).map(c=>c.trim());
+      const stKey = getStatusKey(p.status);
+      
+      toks.forEach(c=>{
+        if(stats[c] !== undefined){ 
+          stats[c].total++;
+          stats[c][stKey]++;
+        }
+      });
+    }
+  });
+
+  const arr = [
+    [{type: 'string', label: 'Country'}, {type: 'number', label: 'Projects'}, {type: 'string', role: 'tooltip', p: { html: true }}]
+  ];
+  
+  for(const [c, stat] of Object.entries(stats)) {
+    const tip = stat.total > 0 ? getTooltipHTML(c, stat) : ''; 
+    arr.push([c, stat.total, tip]);
+  }
+  
+  dataTable = google.visualization.arrayToDataTable(arr);
+  const opts = {
+    colorAxis:{colors:["#eea8a8","#8b1c1c"]},
+    backgroundColor:"#eef3f8",
+    datalessRegionColor:"#f3e5e5",
+    legend:"none",
+    tooltip: { isHtml: true } 
+  };
+  
+  google.visualization.events.removeAllListeners(chart); 
+  chart.draw(dataTable, opts);
+  google.visualization.events.addListener(chart, "select", handleRegionSelect);
+  updatePanelRegion(region);
+}
+
+function handleRegionSelect(){
+  const sel = chart.getSelection();
+  if(!sel.length) return;
+  const c = dataTable.getValue(sel[0].row, 0);
+  updatePanelCountry(viewState.region, c);
+}
+
+/* === 5. Panels === */
+function updatePanelGlobal(){
+  const total = new Set(filtered.map(p=>p.name)).size;
+  const completed = new Set(filtered.filter(p=>p.status.toLowerCase()==="completed").map(p=>p.name)).size;
+  const ontrack = new Set(filtered.filter(p=>p.status.toLowerCase()==="on track").map(p=>p.name)).size;
+  const pipeline = new Set(filtered.filter(p=>p.status.toLowerCase()==="pipeline").map(p=>p.name)).size;
+  
+  document.getElementById("panelTitle").innerText = "Global";
+  document.getElementById("regionCountries").innerText = "All Regions";
+  document.getElementById("countryProjects").innerText = total;
+  document.getElementById("globalMetrics").innerHTML = `
+    <div class="pill">${total} Projects (Including On Track, Pipeline)</div>
+    <div class="pill">${completed} Completed</div>
+    <div class="pill">${ontrack} On Track</div>
+    <div class="pill">${pipeline} Pipeline</div>`;
+  renderTable(filtered);
+}
+
+function updatePanelRegion(r){
+  const list = filtered.filter(p=>p.region===r);
+  const unique = new Set(list.map(p=>p.name));
+  document.getElementById("panelTitle").innerText = r;
+  document.getElementById("regionCountries").innerText = (regionHints[r]||[]).join(", ");
+  document.getElementById("countryProjects").innerText = unique.size;
+  renderTable(list);
+}
+
+function updatePanelCountry(r, c){
+  const list = filtered.filter(p=>{
+    if(p.region!==r) return false;
+    const toks = (p.countryToken||"").split(/[,;&]+/).map(x=>x.trim().toLowerCase());
+    return toks.includes(c.toLowerCase());
+  });
+  const unique = new Set(list.map(p=>p.name));
+  document.getElementById("panelTitle").innerText = `${r} — ${c}`;
+  document.getElementById("regionCountries").innerText = "Projects in this country";
+  document.getElementById("countryProjects").innerText = unique.size;
+  renderTable(list);
+}
+
+/* === 6. Table Rendering === */
+function renderTable(list){
+  const tbl = document.getElementById("regionProjectsTable");
+  if(!list.length){
+    tbl.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:10px;">No projects found</td></tr>`;
+    return;
+  }
+  
+  let html=`<thead><tr>
+    <th>Name</th><th>TA</th><th>Indication</th><th>Status</th><th>Country</th><th>View</th>
+  </tr></thead><tbody>`;
+  
+  list.forEach(p=>{
+    const c = p.countryToken || "-";
+    const status = (p.status||"").trim();
+    
+    // --- ACCESS PREFERENCE RESTRICTION CHECK ---
+    const accessPref = (p.accessPreferenceRestriction || "").trim().toLowerCase();
+    const isRestricted = (accessPref === "restricted");
+    
+    const btnClass = isRestricted ? "btn-icon view-project-btn restricted" : "btn-icon view-project-btn";
+    const btnIcon = isRestricted ? "🔒" : "↗";
+
+    html+=`<tr>
+      <td>${escapeHTML(p.name||"-")}</td>
+      <td>${escapeHTML(p.TA||"-")}</td>
+      <td>${escapeHTML(p.indication||"-")}</td>
+      <td>${escapeHTML(status)}</td>
+      <td>${escapeHTML(c)}</td>
+      <td style="text-align:center">
+        <button class="${btnClass}" 
+          data-title="${escapeHTML(p.name)}"
+          data-status="${escapeHTML(status.toLowerCase())}"
+          data-compliance="${escapeHTML(accessPref)}">${btnIcon}</button>
+      </td>
+    </tr>`;
+  });
+  html+="</tbody>"; tbl.innerHTML=html;
+}
+
+/* === 7. Click Handler === */
+document.getElementById("regionProjectsTable").addEventListener("click", e => {
+  if (e.target.classList.contains("view-project-btn")) {
+    e.stopPropagation();
+    
+    const title = e.target.dataset.title;
+    const status = e.target.dataset.status;
+    const compliance = e.target.dataset.compliance;
+    
+    // Check 1: Access Preference Restriction
+    if (compliance === "restricted") {
+      showModal("Access Denied", 
+        `The project "<strong>${escapeHTML(title)}</strong>" is marked as <strong>Restricted</strong>.<br>Request access to the content by mailing s_vijay.sarangeshwar@roche.com`);
+      return; 
+    }
+    
+    // Check 2: Pipeline
+    if (status === "pipeline" || status === "on track") {
+      const displayStatus = status === "pipeline" ? "Pipeline" : "On Track";
+      showModal("Information Restricted", 
+        `The project "<strong>${escapeHTML(title)}</strong>" is currently in <strong>${displayStatus}</strong>.<br>Details are limited.`);
+      return;
+    }
+    
+    // Hardcoded URL pointing to your detail web app
+    const targetAppUrl = "https://script.google.com/a/macros/roche.com/s/AKfycby0d2gOjNup5AFFIRRM-__M5IBvDbbMmZoVgnQXi2YBYtycxCfkew6Q64Gdi-A_gvj3/exec";
+    
+    // Open Link in new tab
+    window.open(`${targetAppUrl}?page=detail&title=${encodeURIComponent(title)}`, "_blank");
+  }
+});
+
+function showModal(title, msg){
+  document.getElementById("modalTitle").innerHTML = title;
+  document.getElementById("modalMessage").innerHTML = msg;
+  document.getElementById("customModal").style.display = "flex";
+}
+function closeModal(){ document.getElementById("customModal").style.display = "none"; }
+window.onclick = function(e){ if(e.target === document.getElementById("customModal")) closeModal(); };
+
+function escapeHTML(s){return s? s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])):"";}
+</script>
+</body>
+</html>
