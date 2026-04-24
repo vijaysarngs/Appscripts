@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YAALI Project Detail</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+:root {
+  --dark-blue:#10067A;
+  --border:#e5e7eb;
+  --muted:#475569;
+}
+body{
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;
+  background:#fff;
+  color:#0f172a;
+  margin:0;
+  padding:20px;
+}
+.card{
+  max-width:800px;
+  margin:auto;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:0 2px 10px rgba(2,6,23,.06);
+  padding:24px;
+  line-height:1.55;
+}
+h2{
+  font-size:22px;
+  color:var(--dark-blue);
+  margin:0 0 12px;
+  font-weight:700;
+}
+.row{margin:0 0 8px;}
+.bold{font-weight:600;}
+.actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:16px;
+}
+.btn{
+  background:var(--dark-blue);
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  padding:10px 16px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:14px;
+  transition: background 0.2s;
+}
+.btn:hover { background: #0a0458; }
+.btn.secondary{background:#475569;}
+.btn.secondary:hover { background: #334155; }
+
+iframe{
+  width:100%;
+  height:400px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  display:none;
+  margin-top:12px;
+  background: #f8fafc;
+}
+.err{
+  color:#b91c1c;
+  font-weight:700;
+  text-align:center;
+  white-space:pre-wrap;
+  max-width:800px;
+  margin:40px auto;
+  padding: 20px;
+  background: #fef2f2;
+  border-radius: 8px;
+}
+.loading{
+  color:var(--muted);
+  text-align:center;
+  font-size:15px;
+  padding-top:40px;
+  max-width:800px;
+  margin:0 auto;
+}
+.back-link{
+  display:block;
+  text-align:center;
+  margin-top:30px;
+  color:var(--dark-blue);
+  text-decoration:none;
+  font-weight:600;
+}
+.back-link:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<div id="container" class="loading">Loading project details…</div>
+
+<script>
+const escapeHTML = s => String(s||'').replace(/[&<>"]/g, c => (
+  {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]
+));
+
+// SUPER AGGRESSIVE NORMALIZATION - removes ALL non-alphanumeric except spaces
+const normalize = s => {
+  if (!s) return "";
+  return String(s)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s]/g, '') // Keep ONLY letters, numbers, spaces
+    .replace(/\s+/g, ' ')         // Multiple spaces → single space
+    .trim();
+};
+
+// Enhanced matching function
+function findProject(projects, searchTitle) {
+  if (!searchTitle) {
+    console.warn("No search title provided");
+    return null;
+  }
+  
+  const searchNorm = normalize(searchTitle);
+  console.log("🔍 Searching for:", searchTitle);
+  console.log("🔍 Normalized:", searchNorm);
+
+  // Strategy 1: Exact normalized match
+  let match = projects.find(p => normalize(p.title) === searchNorm);
+  if (match) {
+    console.log("✅ Found with Strategy 1: Exact normalized match");
+    return match;
+  }
+
+  // Strategy 2: Case-insensitive trim match
+  const searchTrimmed = (searchTitle || '').toLowerCase().trim();
+  match = projects.find(p => (p.title || '').toLowerCase().trim() === searchTrimmed);
+  if (match) {
+    console.log("✅ Found with Strategy 2: Trimmed match");
+    return match;
+  }
+
+  // Strategy 3: Starts with
+  match = projects.find(p => {
+    const pNorm = normalize(p.title);
+    return pNorm.startsWith(searchNorm) || searchNorm.startsWith(pNorm);
+  });
+  if (match) {
+    console.log("✅ Found with Strategy 3: Starts with");
+    return match;
+  }
+
+  // Strategy 4: Contains all words
+  const searchWords = searchNorm.split(/\s+/).filter(w => w.length > 2);
+  if (searchWords.length > 0) {
+    match = projects.find(p => {
+      const pNorm = normalize(p.title);
+      return searchWords.every(word => pNorm.includes(word));
+    });
+    if (match) {
+      console.log("✅ Found with Strategy 4: All words present");
+      return match;
+    }
+  }
+
+  console.error("❌ No match found");
+  return null;
+}
+
+// ============================================
+// KEY FIX: Get title from server-side params
+// ============================================
+const serverParams = <?!= JSON.stringify(params) ?>;
+const wantedTitle = serverParams.title || '';
+
+console.log("📋 Server params:", serverParams);
+console.log("📋 Title from server:", wantedTitle);
+
+const container = document.getElementById('container');
+
+// Fallback: Also try URL params (in case server-side fails)
+if (!wantedTitle) {
+  const urlParams = new URLSearchParams(location.search);
+  const urlTitle = urlParams.get('title');
+  if (urlTitle) {
+    console.log("⚠️ Using URL param as fallback:", urlTitle);
+    wantedTitle = urlTitle;
+  }
+}
+
+if (!wantedTitle) {
+  showError("No project specified.\n\nPlease select a project from the dashboard.");
+  setTimeout(() => {
+    const base = sessionStorage.getItem('yaali_base_url');
+    if (base) window.location.href = base;
+  }, 3000);
+}
+
+// Try cached data first
+let cached = null;
+try {
+  const raw = sessionStorage.getItem('yaali_project_rows');
+  if (raw) {
+    cached = JSON.parse(raw);
+    console.log("✅ Loaded", cached.length, "projects from cache");
+  }
+} catch(e) { 
+  console.error("❌ Cache parse error:", e); 
+}
+
+if (Array.isArray(cached) && cached.length > 0) {
+  renderProjects(cached);
+} else {
+  // Fetch from server
+  showLoading("Fetching project data from server...");
+  google.script.run
+    .withSuccessHandler(r => {
+      console.log("✅ Server returned data");
+      const data = Array.isArray(r) ? r : (r.data || []);
+      sessionStorage.setItem('yaali_project_rows', JSON.stringify(data));
+      renderProjects(data);
+    })
+    .withFailureHandler(e => {
+      console.error("❌ Server error:", e);
+      showError("Error contacting backend.\n" + e);
+    })
+    .getProjectData();
+}
+
+function renderProjects(rows) {
+  const list = Array.isArray(rows) ? rows : (rows.data || []);
+  
+  if (!list.length) { 
+    showError("No project data available."); 
+    return; 
+  }
+
+  // Map with ALL possible field variations
+  const projects = list.map(r => ({
+    title: (r.title || r.name || r.Name || r.projectName || "Untitled").trim(),
+    description: (r.description || r.projectDescription || r.desc || "").trim(),
+    country: (r.country || r.Country || "").trim(),
+    indication: (r.indication || r.indications || r.Indication || "").trim(),
+    therapeutic: (r.therapeutic || r.TA || r.therapeuticArea || r.Therapeutic || "").trim(),
+    status: (r.status || r.Status || r.projectStatus || "").trim(),
+    output1: (r.output1 || r.output || r.Output1 || "").trim(),
+    output2: (r.output2 || r.Output2 || "").trim()
+  }));
+
+  console.log("📊 Processed", projects.length, "projects");
+
+  // Find the project
+  const proj = findProject(projects, wantedTitle);
+
+  if (!proj) {
+    let errorMsg = `Project not found: "${wantedTitle}"\n\n`;
+    errorMsg += `Searched for (normalized): "${normalize(wantedTitle)}"\n\n`;
+    errorMsg += "Available projects (first 10):\n";
+    projects.slice(0, 10).forEach((p, i) => {
+      errorMsg += `${i + 1}. ${p.title}\n`;
+    });
+    if (projects.length > 10) {
+      errorMsg += `... and ${projects.length - 10} more\n`;
+    }
+    errorMsg += "\n💡 Try clicking the project card again from the dashboard.";
+    showError(errorMsg);
+    return;
+  }
+
+  console.log("✅ Rendering project:", proj.title);
+
+  let html = `
+  <div class="card">
+    <h2>${escapeHTML(proj.title)}</h2>
+    ${proj.description ? `<div class="row">${escapeHTML(proj.description)}</div>` : ""}
+    <div class="row"><span class="bold">Country:</span> ${escapeHTML(proj.country || "NA")}</div>
+    <div class="row"><span class="bold">Indication:</span> ${escapeHTML(proj.indication || "NA")}</div>
+    <div class="row"><span class="bold">Therapeutic Area:</span> ${escapeHTML(proj.therapeutic || "NA")}</div>
+    <div class="row"><span class="bold">Status:</span> ${escapeHTML(proj.status || "NA")}</div>
+  `;
+
+  const outs = [];
+  if (proj.output1 && isValid(proj.output1)) outs.push(proj.output1);
+  if (proj.output2 && isValid(proj.output2)) outs.push(proj.output2);
+  
+  if (outs.length) {
+    html += `<div class="actions">`;
+    outs.forEach((u, i) => {
+      html += `
+        <button class="btn" onclick="previewOutput('${encodeJS(u)}')">👁 Preview ${i + 1}</button>
+        <button class="btn secondary" onclick="window.open('${encodeJS(u)}','_blank')">↗ Open Output ${i + 1}</button>`;
+    });
+    html += `</div>
+             <iframe id="detailFrame" loading="lazy"></iframe>`;
+  }
+
+  html += `</div>`;
+  html += `<a href="${sessionStorage.getItem('yaali_base_url') || '?page=index'}" class="back-link">← Back to Dashboard</a>`;
+  container.innerHTML = html;
+}
+
+function showLoading(msg){ 
+  container.innerHTML = `<div class="loading">${escapeHTML(msg)}</div>`; 
+}
+
+function showError(msg){ 
+  container.innerHTML = `<div class="err">${escapeHTML(msg)}</div>`; 
+}
+
+function isValid(u){
+  if (!u) return false;
+  return /^https:\/\/(drive|docs|.*youtube)\.google/.test(u) || 
+         /^https:\/\/.*youtube\.com/.test(u);
+}
+
+function asPreviewUrl(u){
+  let out = u.trim();
+  if (out.includes("drive.google.com")) out = out.replace(/\/view.*$/,"/preview");
+  if (out.includes("docs.google.com")) out = out.replace(/\/edit.*$/,"/preview");
+  if (out.includes("youtube.com/watch?v=")){
+    try { 
+      const v = new URL(out).searchParams.get("v"); 
+      if(v) out = "https://www.youtube.com/embed/" + v; 
+    } catch {}
+  }
+  return out;
+}
+
+function previewOutput(u){
+  const f = document.getElementById("detailFrame");
+  const finalUrl = asPreviewUrl(u);
+  
+  if (finalUrl === window.location.href) {
+    alert("Cannot preview this page inside itself.");
+    return;
+  }
+
+  f.src = finalUrl;
+  f.style.display = "block";
+  f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function encodeJS(s){
+  return String(s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>
