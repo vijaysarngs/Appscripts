@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    :root {
+      --ocean: #eaf4f8;
+      --land: #f7efe6;
+      --blue-low: #a3e2d4;
+      --blue-high: #056b5c;
+      --headline-bg: rgba(255,255,255,0.95);
+      --headline-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(180deg, #eef5fb 0%, #e9f2f7 100%);
+      font-family: 'Inter', Roboto, Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+      border: none;
+      margin: 0;
+      padding: 0;
+      transition: filter 0.3s ease;
+    }
+    #map:hover {
+      cursor: pointer;
+      filter: brightness(1.05) saturate(1.1);
+    }
+
+    #headline {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      background: var(--headline-bg);
+      border-radius: 14px;
+      padding: 10px 18px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--blue-high);
+      z-index: 10;
+      box-shadow: var(--headline-shadow);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #headline::before {
+      content: "🌍";
+      font-size: 18px;
+    }
+
+    #note {
+      position: absolute;
+      bottom: 18px;
+      left: 18px;
+      background: var(--headline-bg);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 500;
+      font-size: 13px;
+      color: #4b5563;
+      z-index: 10;
+      box-shadow: var(--headline-shadow);
+      pointer-events: none; 
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 17px;
+      color: #0b5f59;
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      flex-direction: column;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .dots::after {
+      content: ' .';
+      animation: dots 1.5s steps(5, end) infinite;
+    }
+    @keyframes dots {
+      0%, 20% { content: ' .'; }
+      40% { content: ' ..'; }
+      60% { content: ' ...'; }
+      80%, 100% { content: ' ....'; }
+    }
+
+    #nodata {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: 600;
+      color: #666;
+      text-align: center;
+      font-size: 18px;
+      display: none;
+    }
+
+    #map.pulse {
+      animation: pulse 1.5s infinite alternate;
+    }
+    @keyframes pulse {
+      from { filter: brightness(1); }
+      to { filter: brightness(1.07); }
+    }
+
+    /* === CUSTOM TOOLTIP STYLES === */
+    /* This completely hides the default Google Chart white box so it doesn't duplicate */
+    div.google-visualization-tooltip {
+      border: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+
+    .tooltip-box {
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: white;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      font-family: 'Inter', sans-serif;
+      color: #1e293b;
+      min-width: 150px;
+      pointer-events: none;
+    }
+    
+    .tt-title {
+      font-weight: 800;
+      font-size: 14px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+      color: #0f172a;
+    }
+
+    .tt-total {
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+
+    .tt-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+
+    .tt-row-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .tt-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <div>Loading global project map<span class="dots"></span></div>
+  </div>
+  <div id="headline">Loading projects map…</div>
+  <div id="map" class="pulse"></div>
+  <div id="nodata"> No valid project data found.<br>Please refresh or check source cache.</div>
+  
+  <div id="note">ℹ️ Note: Hover over any country to view the project status breakdown.</div>
+
+  <script>
+    google.charts.load('current', { packages: ['geochart'] });
+
+    const DASHBOARD_URL =
+      'https://script.google.com/a/macros/roche.com/s/AKfycbyEoxNyMkO3NCL7elEr1LqwSI0YmD163M2QAe32M1bvPVQ3_t9w7CuCE9zZOxhFA9Jn/exec';
+
+    const state = { rows: [], countryStats: {}, countryToRegion: {} };
+    let chart;
+
+    function fail(where, err) {
+      document.getElementById('headline').textContent =
+        `⚠️ ${where}: ${(err && err.message) || err || 'Unknown error'}`;
+      document.getElementById('overlay').style.display = 'none';
+      console.error(where, err);
+    }
+
+    // UPDATED: Now groups by country AND calculates status counts
+    function buildCounts() {
+      const stats = {}, regionMap = {};
+      
+      (state.rows || []).forEach(r => {
+        const countries = (r["country"] || "").split(/[,;&]+/).map(s => s.trim()).filter(Boolean);
+        const region = r["region"] || "Unassigned";
+        
+        // Determine status category
+        const statusRaw = (r["status"] || "").toString().trim().toLowerCase();
+        let statusKey = 'other';
+        if (statusRaw.includes('complete')) statusKey = 'completed';
+        else if (statusRaw.includes('track') || statusRaw === 'ongoing') statusKey = 'ontrack';
+        else if (statusRaw.includes('pipeline') || statusRaw.includes('stop')) statusKey = 'pipeline';
+
+        countries.forEach(c => {
+          if (!c) return;
+          
+          // Initialize country object if it doesn't exist
+          if (!stats[c]) {
+            stats[c] = { total: 0, completed: 0, ontrack: 0, pipeline: 0, other: 0 };
+          }
+          
+          stats[c].total += 1;
+          stats[c][statusKey] += 1;
+          regionMap[c] = region;
+        });
+      });
+      
+      state.countryStats = stats;
+      state.countryToRegion = regionMap;
+    }
+
+    function getOptions() {
+      return {
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--ocean').trim(),
+        datalessRegionColor: getComputedStyle(document.documentElement).getPropertyValue('--land').trim(),
+        legend: 'none',
+        tooltip: { isHtml: true }, // This tells Google to use our custom HTML tooltips
+        colorAxis: { colors: ['#a3e2d4', '#056b5c'] },
+        keepAspectRatio: true,
+        enableRegionInteractivity: true
+      };
+    }
+
+    function buildGlobalData() {
+      const data = new google.visualization.DataTable();
+      data.addColumn('string', 'Country');
+      data.addColumn('number', 'Projects');
+      data.addColumn({ type: 'string', role: 'tooltip', p: { html: true } });
+
+      Object.entries(state.countryStats).forEach(([country, stat]) => {
+        if (stat.total > 0 && !/^global$/i.test(country)) {
+          
+          // Generate the detailed breakdown HTML
+          const tip = `
+            <div class="tooltip-box">
+              <div class="tt-title">${country}</div>
+              <div class="tt-total">${stat.total} Total Project${stat.total > 1 ? 's' : ''}</div>
+              
+              ${stat.completed > 0 ? `
+              <div class="tt-row">
+                <div class="tt-row-left"><span class="tt-dot" style="background:#10b981;"></span>Completed</div>
+                <b>${stat.completed}</b>
+              </div>` : ''}
+              
+              ${stat.ontrack > 0 ? `
+              <div class="tt-row">
+                <div class="tt-row-left"><span class="tt-dot" style="background:#3b82f6;"></span>On-Track</div>
+                <b>${stat.ontrack}</b>
+              </div>` : ''}
+              
+              ${stat.pipeline > 0 ? `
+              <div class="tt-row">
+                <div class="tt-row-left"><span class="tt-dot" style="background:#f59e0b;"></span>Pipeline</div>
+                <b>${stat.pipeline}</b>
+              </div>` : ''}
+              
+              ${stat.other > 0 ? `
+              <div class="tt-row">
+                <div class="tt-row-left"><span class="tt-dot" style="background:#9ca3af;"></span>Other</div>
+                <b>${stat.other}</b>
+              </div>` : ''}
+            </div>`;
+            
+          data.addRow([country, stat.total, tip]);
+        }
+      });
+      return data;
+    }
+
+    function drawGlobal() {
+      const noData = Object.keys(state.countryStats).length === 0;
+      document.getElementById('nodata').style.display = noData ? 'block' : 'none';
+      document.getElementById('overlay').style.display = 'none';
+      document.getElementById('map').classList.remove('pulse');
+      
+      if (noData) {
+        document.getElementById('headline').textContent = 'No valid data found';
+        return;
+      }
+      
+      const data = buildGlobalData();
+      chart.draw(data, getOptions());
+      document.getElementById('headline').textContent =
+        `${Object.keys(state.countryStats).length} Countries Covered`;
+    }
+
+    function attachGlobalClick() {
+      document.getElementById('map').addEventListener('click', () => {
+        if (DASHBOARD_URL) window.open(DASHBOARD_URL, '_blank'); 
+      });
+    }
+
+    function fetchData() {
+      google.script.run
+        .withFailureHandler(err => fail('getCachedProjectData', err))
+        .withSuccessHandler(res => {
+          state.rows = (res && res.data) || [];
+          console.log(`Loaded ${state.rows.length} projects (from ${res.source})`);
+          buildCounts();
+          google.charts.setOnLoadCallback(() => {
+            chart = new google.visualization.GeoChart(document.getElementById('map'));
+            drawGlobal();
+            attachGlobalClick();
+          });
+        })
+        .getCachedProjectData();
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchData);
+  </script>
+</body>
+</html>
