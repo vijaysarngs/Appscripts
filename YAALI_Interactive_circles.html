@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Why Choose Us – Yaali</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+
+<style>
+:root {
+  --blue: #00167a;
+  --ring: #e8edff;
+  --shadow: 0 10px 28px rgba(0,0,0,.1);
+}
+html, body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, sans-serif;
+  background: #fff;
+  color: #0f1b2d;
+}
+.wrap {
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+.card {
+  width: min(980px, 96vw);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 860px) {
+  .grid { grid-template-columns: 1fr; }
+}
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1/1;
+}
+svg { width: 100%; height: 100%; display: block; }
+
+/* ✅ GROUPED SEGMENT HOVER STYLES */
+.wedge-group { cursor: pointer; }
+
+.wedge-group .slice { 
+  fill: #fff; 
+  stroke: #eaf0ff; 
+  stroke-width: 2; 
+  transition: all 0.3s ease;
+}
+.wedge-group:hover .slice { 
+  fill: var(--blue); 
+  stroke: var(--blue);
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1)); 
+}
+.wedge-group.active .slice { 
+  fill: var(--blue); 
+  stroke: var(--blue);
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.2)); 
+}
+
+.center {
+  fill: #fff;
+  stroke: #f0f3ff;
+  stroke-width: 10;
+  filter: drop-shadow(0 6px 18px rgba(0,0,0,.14));
+}
+.centerTitle {
+  font-weight: 800;
+  fill: var(--blue);
+  text-anchor: middle;
+  font-size: 20px;
+}
+
+/* ✅ ICON ANIMATION STYLES */
+.icon-group {
+  transition: transform .25s ease;
+  transform-origin: center;
+  transform-box: fill-box; /* Ensures SVG scales from its true center */
+}
+.wedge-group:hover .icon-group,
+.wedge-group.active .icon-group {
+  transform: scale(1.25);
+}
+
+.icon {
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 48;
+  font-size: 40px;
+  fill: var(--blue);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+  transition: fill 0.3s ease;
+}
+.wedge-group:hover .icon,
+.wedge-group.active .icon {
+  fill: #fff;
+}
+
+.panel {
+  border: 1px solid var(--ring);
+  border-radius: 14px;
+  padding: 16px 20px;
+  background: linear-gradient(#fff, #f9fbff);
+}
+.panel h2 {
+  margin: 0 0 10px;
+  color: var(--blue);
+  font-size: 22px;
+}
+.panel ul {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+.panel li { margin-bottom: 6px; }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="grid">
+      <div class="stage">
+        <svg viewBox="0 0 1000 1000">
+          <circle cx="500" cy="500" r="470" fill="none" stroke="#eef2ff" stroke-width="8"/>
+          <circle cx="500" cy="500" r="430" fill="none" stroke="#f4f6ff" stroke-width="6"/>
+          <g id="segments"></g>
+          <circle cx="500" cy="500" r="170" class="center"/>
+          <text x="500" y="505" class="centerTitle">WHY CHOOSE US?</text>
+        </svg>
+      </div>
+
+      <div class="panel" id="panel">
+        <h2>Select a section</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ITEMS = [
+  { key:'trove', title:'Vast trove of untapped information', icon:'database',
+    content:[
+      'Public datasets hold enormous untapped potential.',
+      'Hidden connections can reveal new opportunities.',
+      'Supports discovery-driven insight generation.'
+    ]},
+  { key:'agility', title:'Agility and independence', icon:'autorenew',
+    content:[
+      'Eliminates dependency on external vendors.',
+      'Gives full control over data flow and integration.',
+      'Empowers internal teams for faster iterations.'
+    ]},
+  { key:'cost', title:'Cost optimization', icon:'monitoring',
+    content:[
+      'Cuts recurring vendor costs through efficient automation.',
+      'Focus resources on analysis and value generation.'
+    ]},
+  { key:'edge', title:'Competitive edge', icon:'target',
+    content:[
+      'Leverages public data to gain early insights.',
+      'Identifies market and research trends ahead of competitors.'
+    ]},
+  { key:'custom', title:'Customized insights', icon:'layers',
+    content:[
+      'Targets datasets tailored to each project’s scope.',
+      'Ensures output aligns with therapeutic or business goals.'
+    ]},
+  { key:'accomplish', title:'Our Accomplishments', icon:'emoji_events',
+    content:[
+      'Since 2024, Team Yaali has received <b>67 project requests</b>.',
+      '<b>55+</b> completed, <b>12</b> ongoing.',
+      '5+ chatbots and 10+ end-to-end analytics projects.'
+    ]}
+];
+
+const CX=500, CY=500, R_OUT=420, R_IN=210;
+const STEP = (2*Math.PI) / ITEMS.length;
+const GAP = 2*Math.PI*0.003;
+const ICON_RADIUS = (R_OUT+R_IN)/2 - 20;
+
+const NS = n => document.createElementNS('http://www.w3.org/2000/svg', n);
+const polar = (r,a)=>[CX+r*Math.cos(a), CY+r*Math.sin(a)];
+
+function wedgePath(a0,a1){
+  const [x0,y0]=polar(R_OUT,a0), [x1,y1]=polar(R_OUT,a1);
+  const [x2,y2]=polar(R_IN,a1), [x3,y3]=polar(R_IN,a0);
+  return `M ${x0},${y0} A ${R_OUT},${R_OUT} 0 0 1 ${x1},${y1}
+          L ${x2},${y2} A ${R_IN},${R_IN} 0 0 0 ${x3},${y3} Z`;
+}
+
+const root = document.getElementById('segments');
+
+ITEMS.forEach((it,i)=>{
+  const a0 = -Math.PI/2 + i*STEP;
+  const a1 = a0 + STEP - GAP;
+
+  // Group everything together
+  const group = NS('g');
+  group.classList.add('wedge-group');
+  group.onclick = () => select(it.key, group);
+
+  // Create slice
+  const slice = NS('path');
+  slice.setAttribute('d', wedgePath(a0,a1));
+  slice.classList.add('slice');
+  
+  // Create icon position wrapper
+  const mid = (a0+a1)/2;
+  const [ix,iy] = polar(ICON_RADIUS, mid);
+  const iconPos = NS('g');
+  iconPos.setAttribute('transform',`translate(${ix},${iy+14})`);
+
+  // Create icon scaler
+  const iconGroup = NS('g');
+  iconGroup.setAttribute('class','icon-group');
+
+  // Create text icon
+  const t = NS('text');
+  t.setAttribute('class','icon material-symbols-outlined');
+  t.textContent = it.icon;
+
+  // Assemble the elements
+  iconGroup.appendChild(t);
+  iconPos.appendChild(iconGroup);
+  group.appendChild(slice);
+  group.appendChild(iconPos);
+  
+  root.appendChild(group);
+});
+
+const panel = document.getElementById('panel');
+function select(key, seg){
+  document.querySelectorAll('.wedge-group').forEach(s=>s.classList.remove('active'));
+  seg.classList.add('active');
+  const it = ITEMS.find(x=>x.key===key);
+  panel.innerHTML = `<h2>${it.title}</h2><ul>${it.content.map(c=>`<li>${c}</li>`).join('')}</ul>`;
+}
+
+// Select the first item by default
+select(ITEMS[0].key, document.querySelector('.wedge-group'));
+</script>
+</body>
+</html>
